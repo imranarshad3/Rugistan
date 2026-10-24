@@ -243,7 +243,7 @@ export default function Reviews() {
             <span style={{ opacity: 0.3 }}>{'★'.repeat(5 - managing.rating)}</span>
           </p>
           {managing.title && <h3 style={{ marginBottom: 8 }}>{managing.title}</h3>}
-          <p style={{ lineHeight: 1.7, color: '#5b4637' }}>{managing.body}</p>
+          <p style={{ lineHeight: 1.7, color: 'var(--rg-ink)' }}>{managing.body}</p>
           <p className="tiny" style={{ marginTop: 12 }}>
             Submitted {shortDate(managing.created_at)}
           </p>

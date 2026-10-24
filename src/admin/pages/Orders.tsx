@@ -184,9 +184,9 @@ export default function Orders() {
                       {o.first_name} {o.last_name}
                       <div className="tiny">{o.email}</div>
                     </td>
-                    <td>{(o.items ?? []).reduce((sum, i) => sum + i.quantity, 0)}</td>
+                    <td>{(o.items ?? []).reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)}</td>
                     <td>
-                      <strong>{money(o.total)}</strong>
+                      <strong className="money">{money(o.total)}</strong>
                     </td>
                     <td>
                       <span className={`tag ${statusTone(o.status)}`}>{titleCase(o.status)}</span>

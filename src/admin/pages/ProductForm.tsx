@@ -469,7 +469,7 @@ export default function ProductForm() {
                   type="color"
                   value={c.hex}
                   aria-label="Swatch colour"
-                  style={{ width: 46, height: 40, border: '1px solid #e4d7ca', borderRadius: 6, background: 'none' }}
+                  style={{ width: 46, height: 40, border: '1px solid var(--rg-line)', borderRadius: 6, background: 'none' }}
                   onChange={(e) => setColors((list) => list.map((x, j) => (j === i ? { ...x, hex: e.target.value } : x)))}
                 />
                 <button type="button" className="action danger" onClick={() => setColors((list) => list.filter((_, j) => j !== i))}>

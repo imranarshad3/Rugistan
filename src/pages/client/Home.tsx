@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { ArrowUpRight } from 'lucide-react'
+import './home-hero.css'
 import { Link } from 'react-router-dom'
 import { fetchBanners, fetchProducts } from '../../lib/api'
 import { useStore } from '../../context/StoreContext'
@@ -15,6 +17,7 @@ import {
 import { Reveal } from '../../components/client/Primitives'
 import type { Banner, ProductFull } from '../../lib/types'
 
+const HERO_TITLE = 'Tradition Woven Into Every Thread.'
 const HERO_FALLBACK = '/assets/rug-living-hero.webp'
 
 export default function Home() {
@@ -42,6 +45,7 @@ export default function Home() {
   }, [])
 
   const hero = banners.home_hero
+  const heroTitle = hero?.title || HERO_TITLE
   const gallery = featured.length
     ? featured.flatMap((p) => p.images.map((i) => i.url)).slice(0, 6)
     : []
@@ -49,40 +53,43 @@ export default function Home() {
   return (
     <>
       {loadError && <div className="notice error" role="alert">We could not load the latest collection. Please refresh and try again.</div>}
-      <div className="cover hero">
-        <img src={HERO_FALLBACK} alt="" aria-hidden="true" />
-        <div className="shade" />
-        <div className="cover-text">
+      <section className="home-hero" aria-labelledby="home-hero-title">
+        <div className="home-hero-copy">
           <div className="eyebrow">{hero?.eyebrow || 'Handmade Rugs for a Brighter Home'}</div>
-          <h1>{hero?.title || 'Tradition Woven Into Every Thread.'}</h1>
-          <p className="subtitle">
+          <h1 id="home-hero-title">{heroTitle === HERO_TITLE ? <><span>Tradition</span>{' '}<span>Woven Into</span>{' '}<span>Every Thread.</span></> : heroTitle}</h1>
+          <p className="home-hero-description">
             {hero?.subtitle ||
               'Discover timeless handmade rugs, thoughtfully crafted to bring warmth, beauty, and character into your home.'}
           </p>
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-            <Link className="btn" to={hero?.link_url || '/shop'}>
-              {hero?.cta_label || 'Shop Collection'} &nbsp; →
+          <div className="home-hero-actions">
+            <Link className="btn home-hero-cta" to={hero?.link_url || '/shop'}>
+              {hero?.cta_label || 'Shop Collection'} <ArrowUpRight size={18} aria-hidden="true" />
             </Link>
-            <Link className="btn outline" to="/our-story">
-              Our Story
-            </Link>
+            <Link className="home-hero-story" to="/our-story">Our Story <span aria-hidden="true">↗</span></Link>
           </div>
-          <div className="hero-footnote"><span className="hero-thread" />Natural textures. Individual character. Made by hand.</div>
+          <p className="home-hero-signature"><span aria-hidden="true" />Natural textures. Individual character. Made by hand.</p>
         </div>
-        <span className="hero-edition">THE RUGISTAN COLLECTION · HANDMADE LIVING</span>
-      </div>
+        <figure className="home-hero-figure">
+          <div className="home-hero-image">
+            <img src={HERO_FALLBACK} srcSet="/assets/rug-living-hero-640.webp 640w, /assets/rug-living-hero-960.webp 960w, /assets/rug-living-hero.webp 1672w" sizes="(max-width: 700px) calc(100vw - 2.5rem), (max-width: 1000px) 44vw, (max-width: 1792px) 54vw, 58rem" width={1672} height={941} fetchPriority="high" alt="A patterned blue rug brings warmth to a sunlit living room with natural wood and linen furnishings" />
+          </div>
+          <figcaption><span>The art of living well</span><span>Rugistan · Handmade living</span></figcaption>
+        </figure>
+      </section>
 
       <FeatureRow />
 
-      <Reveal as="section" className="section wrap">
-        <SectionTitle
-          eyebrow="EXPLORE BY STYLE"
-          title="Shop by Category"
-          description="Discover the perfect rug for your individual space."
-          linkTo="/collections"
-        />
-        <CategoryTiles categories={categories} />
-      </Reveal>
+      {categories.length > 0 && (
+        <Reveal as="section" className="section wrap">
+          <SectionTitle
+            eyebrow="EXPLORE BY STYLE"
+            title="Shop by Category"
+            description="Discover the perfect rug for your individual space."
+            linkTo="/collections"
+          />
+          <CategoryTiles categories={categories} />
+        </Reveal>
+      )}
 
       <section className="section wrap paper">
         <SectionTitle

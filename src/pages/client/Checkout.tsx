@@ -325,7 +325,7 @@ export default function Checkout() {
             {cart.lines.map((line) => (
               <div
                 key={`${line.productId}-${line.variantId ?? 'base'}`}
-                style={{ display: 'flex', gap: 15, padding: '20px 0', borderBottom: '1px solid #dfd1c1' }}
+                style={{ display: 'flex', gap: 15, padding: '20px 0', borderBottom: '1px solid var(--rg-line)' }}
               >
                 <img
                   style={{ width: 80, height: 95, objectFit: 'cover' }}

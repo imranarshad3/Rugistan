@@ -49,11 +49,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="drawer-backdrop" onClick={onClose} role="presentation">
-      <div
-        onClick={(e) => e.stopPropagation()}
-        role="search"
-        style={{ background: '#fffaf4', padding: '34px 5%', animation: 'rgFade .25s' }}
-      >
+      <div className="search-panel" onClick={(e) => e.stopPropagation()} role="search">
         <form
           onSubmit={(e: FormEvent) => {
             e.preventDefault()
@@ -61,7 +57,6 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
             onClose()
             navigate(q ? `/shop?q=${encodeURIComponent(q)}` : '/shop')
           }}
-          style={{ maxWidth: 740, margin: '0 auto', display: 'flex', gap: 12 }}
         >
           <label className="sr-only" htmlFor="site-search">
             Search rugs
@@ -72,12 +67,11 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
             value={term}
             onChange={(e) => setTerm(e.target.value)}
             placeholder="Search rugs by name, colour or material…"
-            style={{ flex: 1, padding: 16, border: '1px solid #e0d3c8', background: '#fffefa' }}
           />
           <button className="btn" type="submit">
             Search
           </button>
-          <button className="btn outline" type="button" onClick={onClose}>
+          <button className="btn outline search-close" type="button" onClick={onClose}>
             Close
           </button>
         </form>
@@ -279,7 +273,6 @@ function Footer() {
             </li>
           </ul>
         </div>
-        <Newsletter />
         <div className="footer-social">
           <h4>Stay Connected</h4>
           {social.length ? (
@@ -310,6 +303,7 @@ function Footer() {
             </p>
           )}
         </div>
+        <Newsletter />
       </footer>
       {currency.code !== store.currency && !currency.error && <div className="currency-disclosure">Prices in {currency.code} are estimates. Orders are charged in {store.currency}. <a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer">Rates by ExchangeRate-API</a></div>}
       {currency.error && <div className="currency-disclosure">{currency.error}</div>}

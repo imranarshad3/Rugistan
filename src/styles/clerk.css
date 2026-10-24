@@ -1,0 +1,53 @@
+/* Clerk's account widgets.
+   Deliberately NOT inside a cascade layer: Clerk injects its own unlayered
+   stylesheet at runtime, and unlayered rules always beat layered ones. These
+   overrides have to sit outside the layers to reach the widget at all. */
+.rg-client .clerk-auth-panel,
+.rg-admin .login-card .cl-rootBox { width: 100%; }
+.rg-client .clerk-auth-panel { min-height: 16rem; }
+.rg-client .clerk-auth-panel .cl-rootBox,
+.rg-client .clerk-auth-panel .cl-cardBox { width: 100%; max-width: 100%; }
+
+/* The page already carries the heading, so the widget repeats it on the first step. */
+.rg-client .clerk-auth-panel .cl-signIn-start > .cl-header,
+.rg-client .clerk-auth-panel .cl-signUp-start > .cl-header,
+.rg-admin .login-card .cl-signIn-start > .cl-header { display: none; }
+
+.rg-client .clerk-auth-panel .cl-cardBox,
+.rg-admin .login-card .cl-cardBox { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.rg-client .clerk-auth-panel .cl-card,
+.rg-admin .login-card .cl-card { background: transparent; box-shadow: none; padding: 0; gap: 1.5rem; }
+.rg-client .clerk-auth-panel .cl-footer,
+.rg-admin .login-card .cl-footer { display: none; }
+
+.rg-client .clerk-auth-panel .cl-headerTitle,
+.rg-admin .login-card .cl-headerTitle { font-family: var(--rg-serif); font-weight: 400; letter-spacing: var(--rg-tracking-tight); color: var(--rg-ink); }
+.rg-client .clerk-auth-panel .cl-headerSubtitle,
+.rg-admin .login-card .cl-headerSubtitle { color: var(--rg-muted); }
+
+.rg-client .clerk-auth-panel .cl-formFieldLabel,
+.rg-admin .login-card .cl-formFieldLabel { color: var(--rg-ink); font-weight: 500; }
+.rg-client .clerk-auth-panel .cl-formFieldInput,
+.rg-client .clerk-auth-panel .cl-socialButtonsBlockButton,
+.rg-admin .login-card .cl-formFieldInput,
+.rg-admin .login-card .cl-socialButtonsBlockButton {
+  background: var(--rg-paper); border: 1px solid var(--rg-line); border-radius: var(--rg-radius);
+  min-height: var(--rg-control); box-shadow: none; color: var(--rg-ink);
+}
+.rg-client .clerk-auth-panel .cl-formFieldInput:focus,
+.rg-admin .login-card .cl-formFieldInput:focus { border-color: var(--rg-focus); outline: 2px solid #79533126; outline-offset: 2px; }
+.rg-client .clerk-auth-panel .cl-socialButtonsBlockButton:hover,
+.rg-admin .login-card .cl-socialButtonsBlockButton:hover { background: var(--rg-linen); }
+
+.rg-client .clerk-auth-panel .cl-formButtonPrimary,
+.rg-admin .login-card .cl-formButtonPrimary {
+  background: var(--rg-ink); background-image: none; color: var(--rg-paper);
+  border: 1px solid var(--rg-ink); border-radius: var(--rg-radius);
+  min-height: var(--rg-control); box-shadow: none; font-weight: 500; letter-spacing: .04em;
+}
+.rg-client .clerk-auth-panel .cl-formButtonPrimary:hover:not(:disabled),
+.rg-admin .login-card .cl-formButtonPrimary:hover:not(:disabled) { background: var(--rg-ink-hover); border-color: var(--rg-ink-hover); }
+.rg-client .clerk-auth-panel .cl-formButtonPrimary * { color: inherit; }
+.rg-client .clerk-auth-panel .cl-formButtonPrimary:disabled { opacity: .65; }
+.rg-client .clerk-auth-panel :focus-visible,
+.rg-admin .login-card :focus-visible { outline: 2px solid var(--rg-focus); outline-offset: 3px; }

@@ -71,7 +71,10 @@ export default function Contact() {
     <>
       <PageBanner
         title="Contact Us"
+        eyebrow="WE ARE HERE TO HELP"
         description="Questions about rugs, sizing, or custom orders? Our team would love to hear from you."
+        cta="Send a Message"
+        ctaTo="#inquiry-form"
         image="/assets/rug_lifestyle_1.jpg"
       />
 
@@ -99,7 +102,7 @@ export default function Contact() {
             ))}
           </div>
 
-          <div className="card">
+          <div className="card" id="inquiry-form">
             <div className="eyebrow">SEND A MESSAGE</div>
             <h2 style={{ marginBottom: 20 }}>Inquiry Form</h2>
 

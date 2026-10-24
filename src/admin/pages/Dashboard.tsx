@@ -128,18 +128,21 @@ export default function Dashboard() {
           ) : categories.length === 0 ? (
             <EmptyState title="Nothing sold yet" message="Collection performance appears once orders are placed." />
           ) : (
-            categories.map((c) => (
-              <div className="kpi" key={c.category_id}>
-                <img src={c.image_url ?? '/assets/rug_lifestyle_1.jpg'} alt="" aria-hidden="true" />
-                <div style={{ flex: 1 }}>
-                  <strong>{c.name}</strong>
-                  <div className="progress">
-                    <b style={{ width: `${Math.min(Number(c.share), 100)}%` }} />
+            categories.map((c) => {
+              const share = Math.min(Math.max(Number(c.share) || 0, 0), 100)
+              return (
+                <div className="kpi" key={c.category_id}>
+                  <img src={c.image_url ?? '/assets/rug_lifestyle_1.jpg'} alt="" aria-hidden="true" />
+                  <div style={{ flex: 1 }}>
+                    <strong>{c.name}</strong>
+                    <div className="progress">
+                      <b style={{ width: `${share}%` }} />
+                    </div>
                   </div>
+                  <strong>{share.toFixed(0)}%</strong>
                 </div>
-                <strong>{Number(c.share).toFixed(0)}%</strong>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>

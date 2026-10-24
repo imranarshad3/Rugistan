@@ -1,34 +1,36 @@
-/* Shared select controls, with portaled menus that escape tables and scroll panels. */
-.modern-select-wrap{display:inline-flex;position:relative;max-width:100%;vertical-align:middle;min-width:0}
-.modern-select-native{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important;padding:0!important;border:0!important;opacity:0!important;pointer-events:none!important}
-.modern-select-trigger,.rg-admin .modern-select-trigger.select,.rg-client .modern-select-trigger{display:flex;align-items:center;justify-content:space-between;gap:1rem;width:100%;min-height:2.875rem;padding:.75rem 1rem;background:#fffdfa;border:1px solid #e1d2c1;border-radius:.5rem;color:#624a37;font:500 .875rem/1.5 'DM Sans',Arial,sans-serif;text-align:left;box-shadow:0 1px 2px #43260e04;background-image:none;cursor:pointer;transition:border-color .18s,box-shadow .18s,background .18s}
-.modern-select-trigger:hover:not(:disabled){border-color:#ba9670;background:#fffaf3}
-.modern-select-trigger[aria-expanded=true]{border-color:#aa7b4e;background:#fffaf3;box-shadow:0 0 0 3px #b58b5f14}
-.modern-select-trigger:focus-visible{outline:2px solid #b58b5f;outline-offset:3px}
-.modern-select-trigger:disabled{opacity:.5;cursor:not-allowed}
-.modern-select-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.modern-select-arrow{flex-shrink:0;color:#9c7a59;transition:transform .2s}
-.modern-select-trigger[aria-expanded=true] .modern-select-arrow{transform:rotate(180deg)}
-.modern-select-menu{position:fixed;z-index:1000;overflow-y:auto;overscroll-behavior:contain;padding:.4375rem;border:1px solid #e4d5c4;background:#fffdf8;border-radius:.75rem;box-shadow:0 16px 42px #42251124,0 2px 6px #4225110a;font:400 .875rem/1.45 'DM Sans',Arial,sans-serif;color:#5d4430;animation:selectMenuIn .14s ease-out;scrollbar-width:thin;scrollbar-color:#d7c4ac transparent}
-.modern-select-caption{padding:.625rem .75rem .75rem;font-size:.625rem;line-height:1.5;text-transform:uppercase;letter-spacing:.12em;font-weight:700;color:#a18568;border-bottom:1px solid #eee4d7;margin-bottom:.375rem}
-.modern-select-option{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.6875rem .75rem;min-height:2.625rem;border-radius:.4375rem;cursor:pointer;margin:.125rem 0;transition:background .12s,color .12s}
-.modern-select-option.focused{background:#f6ede1;color:#4d2d18}
-.modern-select-option.selected{background:#efe1cf;color:#6f4527;font-weight:600}
-.modern-select-option.selected svg{color:#966839;flex-shrink:0}
-.modern-select-option.disabled{opacity:.4;cursor:not-allowed}
-.rg-admin .field>.modern-select-wrap,.rg-client label>.modern-select-wrap{width:100%}
-.rg-admin .searchrow>.modern-select-wrap{flex:0 1 auto;min-width:8.25rem}
-.rg-admin .heading .modern-select-wrap{min-width:11rem}
-.rg-admin .product-status-select.modern-select-trigger{min-width:7.5rem;min-height:2.375rem;padding:.5rem .625rem;font-size:.75rem;border-radius:.375rem}
-.rg-admin .modern-select-trigger.published{background:#edf6ed;border-color:#cde6ce;color:#32755b}
-.rg-admin .modern-select-trigger.draft{background:#fdf0e0;border-color:#f6dcc0;color:#a56b29}
-.rg-admin .modern-select-trigger.archived{background:#f2ece5;border-color:#e4d9cd;color:#7b6b5d}
-.rg-admin .table td .modern-select-wrap{max-width:100%}
-.rg-client .contact-form .modern-select-wrap{width:100%}
-@keyframes selectMenuIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:700px){.rg-admin .searchrow>.modern-select-wrap{flex:1;min-width:8rem}.modern-select-menu{border-radius:.625rem}.modern-select-option{min-height:2.875rem}}
-@media(prefers-reduced-motion:reduce){.modern-select-menu{animation:none}.modern-select-arrow{transition:none}}
-.currency-menu,.premium-select-menu,.rg-admin .menupop{border-radius:.75rem;box-shadow:0 16px 42px #42251124,0 2px 6px #4225110a;border-color:#e4d5c4}
-.rg-admin .menupop{padding:.375rem;background:#fffdf8}
-.rg-admin .menupop a,.rg-admin .menupop button{border-radius:.375rem;padding:.75rem .875rem;font-size:.8125rem}
-.rg-admin .menupop a:hover,.rg-admin .menupop button:hover{background:#f3e8d9;color:#704527}
+@layer components {
+  /* Shared select controls, with portaled menus that escape tables and scroll panels. */
+  .modern-select-wrap{display:inline-flex;position:relative;max-width:100%;vertical-align:middle;min-width:0}
+  .modern-select-native{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important;padding:0!important;border:0!important;opacity:0!important;pointer-events:none!important}
+  .modern-select-trigger,.rg-admin .modern-select-trigger.select,.rg-client .modern-select-trigger{display:flex;align-items:center;justify-content:space-between;gap:1rem;width:100%;min-height:2.875rem;padding:.75rem 1rem;background:#fffdfa;border:1px solid #e1d2c1;border-radius:.5rem;color:#624a37;font:500 .875rem/1.5 'DM Sans',Arial,sans-serif;text-align:left;box-shadow:0 1px 2px #43260e04;background-image:none;cursor:pointer;transition:border-color .18s,box-shadow .18s,background .18s}
+  .modern-select-trigger:hover:not(:disabled){border-color:#ba9670;background:#fffaf3}
+  .modern-select-trigger[aria-expanded=true]{border-color:#aa7b4e;background:#fffaf3;box-shadow:0 0 0 3px #b58b5f14}
+  .modern-select-trigger:focus-visible{outline:2px solid #b58b5f;outline-offset:3px}
+  .modern-select-trigger:disabled{opacity:.5;cursor:not-allowed}
+  .modern-select-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .modern-select-arrow{flex-shrink:0;color:#9c7a59;transition:transform .2s}
+  .modern-select-trigger[aria-expanded=true] .modern-select-arrow{transform:rotate(180deg)}
+  .modern-select-menu{position:fixed;z-index:1000;overflow-y:auto;overscroll-behavior:contain;padding:.4375rem;border:1px solid #e4d5c4;background:#fffdf8;border-radius:.75rem;box-shadow:0 16px 42px #42251124,0 2px 6px #4225110a;font:400 .875rem/1.45 'DM Sans',Arial,sans-serif;color:#5d4430;animation:selectMenuIn .14s ease-out;scrollbar-width:thin;scrollbar-color:#d7c4ac transparent}
+  .modern-select-caption{padding:.625rem .75rem .75rem;font-size:.625rem;line-height:1.5;text-transform:uppercase;letter-spacing:.12em;font-weight:700;color:#a18568;border-bottom:1px solid #eee4d7;margin-bottom:.375rem}
+  .modern-select-option{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.6875rem .75rem;min-height:2.625rem;border-radius:.4375rem;cursor:pointer;margin:.125rem 0;transition:background .12s,color .12s}
+  .modern-select-option.focused{background:#f6ede1;color:#4d2d18}
+  .modern-select-option.selected{background:#efe1cf;color:#6f4527;font-weight:600}
+  .modern-select-option.selected svg{color:#966839;flex-shrink:0}
+  .modern-select-option.disabled{opacity:.4;cursor:not-allowed}
+  .rg-admin .field>.modern-select-wrap,.rg-client label>.modern-select-wrap{width:100%}
+  .rg-admin .searchrow>.modern-select-wrap{flex:0 1 auto;min-width:8.25rem}
+  .rg-admin .heading .modern-select-wrap{min-width:11rem}
+  .rg-admin .product-status-select.modern-select-trigger{min-width:7.5rem;min-height:2.375rem;padding:.5rem .625rem;font-size:.75rem;border-radius:.375rem}
+  .rg-admin .modern-select-trigger.published{background:#edf6ed;border-color:#cde6ce;color:#32755b}
+  .rg-admin .modern-select-trigger.draft{background:#fdf0e0;border-color:#f6dcc0;color:#a56b29}
+  .rg-admin .modern-select-trigger.archived{background:#f2ece5;border-color:#e4d9cd;color:#7b6b5d}
+  .rg-admin .table td .modern-select-wrap{max-width:100%}
+  .rg-client .contact-form .modern-select-wrap{width:100%}
+  @keyframes selectMenuIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+  @media(max-width:700px){.rg-admin .searchrow>.modern-select-wrap{flex:1;min-width:8rem}.modern-select-menu{border-radius:.625rem}.modern-select-option{min-height:2.875rem}}
+  @media(prefers-reduced-motion:reduce){.modern-select-menu{animation:none}.modern-select-arrow{transition:none}}
+  .currency-menu,.premium-select-menu,.rg-admin .menupop{border-radius:.75rem;box-shadow:0 16px 42px #42251124,0 2px 6px #4225110a;border-color:#e4d5c4}
+  .rg-admin .menupop{padding:.375rem;background:#fffdf8}
+  .rg-admin .menupop a,.rg-admin .menupop button{border-radius:.375rem;padding:.75rem .875rem;font-size:.8125rem}
+  .rg-admin .menupop a:hover,.rg-admin .menupop button:hover{background:#f3e8d9;color:#704527}
+}

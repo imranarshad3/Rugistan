@@ -77,3 +77,19 @@ export function useMoney(displayCode?: DisplayCurrency, sourceCurrency?: string)
     return new Intl.NumberFormat(locale, { style: 'currency', currency: code, minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 }).format(value)
   }, [current, displayCode, sourceCurrency])
 }
+
+/**
+ * Guide prices (filter bands and similar). Converted amounts carry false
+ * precision — "Under Rs 83,017.84" — so round to a readable step first.
+ */
+export function useApproxMoney() {
+  const current = useCurrency()
+  return useCallback((amount: number): string => {
+    const value = convertAmount(amount, getStoreCurrency(), current.code, current.rates)
+    if (value === null || current.error) return baseMoney(amount)
+    const step = value >= 10000 ? 1000 : value >= 1000 ? 100 : value >= 100 ? 10 : 1
+    const locale = CURRENCIES.find(c => c.code === current.code)?.locale || 'en-US'
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: current.code, maximumFractionDigits: 0 })
+      .format(Math.round(value / step) * step)
+  }, [current])
+}

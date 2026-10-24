@@ -26,6 +26,32 @@ npm run check:production
 
 `check:production` requires a live Clerk key. A successful build alone does not establish release readiness. Lint currently passes with existing React lifecycle/Fast Refresh warnings; these have not been blanket-disabled.
 
+## Styling architecture
+
+Every stylesheet is wrapped in a CSS cascade layer, declared once at the top of `src/index.css`:
+
+```
+@layer reset, tokens, base, storefront, studio, components, system;
+```
+
+| Layer | File(s) | Role |
+| --- | --- | --- |
+| `reset` | `src/index.css` | Document reset, toasts, boot screen |
+| `tokens` | `src/styles/design-tokens.css` | The brand's single source of truth: colour, type, rhythm, motion |
+| `base` | `src/styles/client.css`, `src/styles/admin.css` | Structural defaults for storefront and studio |
+| `storefront` | `src/styles/premium.css` | Page-specific storefront layout |
+| `studio` | `src/styles/admin-theme.css` | Studio theme |
+| `components` | `src/styles/select.css` | Shared portalled controls |
+| `system` | `src/styles/luxury.css` | The design system — final, authoritative pass over both surfaces |
+
+Because later layers win regardless of selector specificity, `luxury.css` can state a rule once instead of
+out-specifying earlier files. Add new design decisions there and resolve colour/size values to the
+`--rg-*` tokens rather than literals.
+
+Two stylesheets stay outside the layers on purpose: `src/styles/clerk.css` (Clerk injects its own
+unlayered stylesheet at runtime, and unlayered rules beat layered ones) and `src/pages/client/home-hero.css`
+(page-scoped, loaded with the home chunk).
+
 ## Database regression tests
 
 `npm run test:db` requires Docker and an existing local Supabase PostgreSQL container (default `supabase_db_rugistan`; override `SUPABASE_TEST_CONTAINER`). It creates a uniquely named disposable database, applies every migration in filename order, runs pgTAP ownership/CRUD/checkout tests and a forced concurrent promotion-redemption test, then drops that database. Existing local/cloud user data is not reset. Storage and JWT helper schemas are minimal test fixtures; real Clerk token verification and Storage HTTP uploads still require end-to-end verification.

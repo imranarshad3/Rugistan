@@ -52,12 +52,7 @@ export function AccountLayout() {
               </NavLink>
             ))}
             {isAdmin && <Link className="acct-admin-link" to="/admin"><LayoutDashboard size={17} aria-hidden="true" /><span>Admin Dashboard</span><ArrowUpRight size={16} aria-hidden="true" /></Link>}
-            <button
-              type="button"
-              className="acctsignout"
-              onClick={() => void signOut()}
-              style={{ padding: '14px 18px', fontSize: '0.875rem', background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', color: '#a5503c' }}
-            >
+            <button type="button" className="acct-signout" onClick={() => void signOut()}>
               Sign Out
             </button>
           </nav>
@@ -268,7 +263,7 @@ export function AccountOrderDetail() {
       <div className="card" style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 16 }}>Items</h3>
         {(order.items ?? []).map((item) => (
-          <div key={item.id} style={{ display: 'flex', gap: 16, alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f0e6da' }}>
+          <div key={item.id} style={{ display: 'flex', gap: 16, alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--rg-line)' }}>
             <img src={item.image_url ?? '/assets/rug_lifestyle_1.jpg'} alt="" aria-hidden="true" style={{ width: 64, height: 64, objectFit: 'cover' }} />
             <div style={{ flex: 1 }}>
               <strong>{item.product_name}</strong>

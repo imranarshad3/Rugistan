@@ -195,7 +195,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p style={{ lineHeight: 1.7, color: '#6b564a' }}>{message}</p>
+      <p style={{ lineHeight: 1.7, color: 'var(--rg-muted)' }}>{message}</p>
     </Modal>
   )
 }
@@ -365,7 +365,7 @@ export function LineChart({ points, labels }: { points: number[]; labels: string
         <line key={y} x1={left} x2={right} y1={y} y2={y} stroke="#f1e8df" />
       ))}
       <path d={area} fill="url(#rgArea)" />
-      <path d={line} fill="none" stroke="#86563e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={line} fill="none" stroke="#86563e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       {coords.length > 0 && <circle cx={coords[coords.length - 1].x} cy={coords[coords.length - 1].y} r="6" fill="#86563e" />}
       {labels.map((label, i) => (
         <text key={`${label}-${i}`} x={left + i * step} y="253" textAnchor="middle">

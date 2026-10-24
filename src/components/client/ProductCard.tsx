@@ -1,5 +1,5 @@
 import { useMoney } from '../../lib/currency'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useCart } from '../../context/CartContext'
 import { useWishlist } from '../../context/WishlistContext'
@@ -16,10 +16,11 @@ export function productCover(product: ProductFull) {
 
 export default function ProductCard({ product }: { product: ProductFull }) {
   const money = useMoney()
+  const navigate = useNavigate()
   const { add } = useCart()
   const wishlist = useWishlist()
   const toast = useToast()
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<'cart' | 'buy' | null>(null)
   const [variantId, setVariantId] = useState<string | null>(null)
   const [cardNow] = useState(() => Date.now())
 
@@ -32,11 +33,16 @@ export default function ProductCard({ product }: { product: ProductFull }) {
   const low = inStock && product.stock_quantity <= product.low_stock_at
   const saved = wishlist.has(product.id)
 
-  async function handleAdd() {
-    setBusy(true)
+  async function handleAdd(then: 'stay' | 'checkout') {
+    if (busy) return
+    setBusy(then === 'stay' ? 'cart' : 'buy')
     const error = await add(product.id, selectedVariant?.id ?? null, 1)
-    setBusy(false)
-    if (error) toast.error(error)
+    setBusy(null)
+    if (error) {
+      toast.error(error)
+      return
+    }
+    if (then === 'checkout') navigate('/checkout')
     else toast.success(`${product.name} added to your cart.`)
   }
 
@@ -79,9 +85,16 @@ export default function ProductCard({ product }: { product: ProductFull }) {
           </div>
         )}
         <div className="price">{money(unitPrice)}</div>
-        <button type="button" className="btn" onClick={handleAdd} disabled={!inStock || busy}>
-          {busy ? <Spinner label="Adding" /> : !inStock ? 'Out of Stock' : <><Icon name="cart" /> Add to Cart</>}
-        </button>
+        <div className="prod-actions">
+          <button type="button" className="btn prod-add" onClick={() => handleAdd('stay')} disabled={!inStock || busy !== null}>
+            {busy === 'cart' ? <Spinner label="Adding" /> : !inStock ? 'Out of Stock' : <><Icon name="cart" /> Add to Cart</>}
+          </button>
+          {inStock && (
+            <button type="button" className="btn prod-buy" onClick={() => handleAdd('checkout')} disabled={busy !== null} aria-label={`Buy ${product.name} now`}>
+              {busy === 'buy' ? <Spinner /> : 'Buy Now'}
+            </button>
+          )}
+        </div>
       </div>
     </article>
   )
@@ -92,9 +105,12 @@ export function ProductCardSkeleton() {
     <article className="prod">
       <div className="skeleton" style={{ width: '100%', aspectRatio: '.97' }} />
       <div className="prodbody">
-        <div className="skeleton" style={{ height: 22, marginBottom: 12 }} />
-        <div className="skeleton" style={{ height: 14, width: '60%', marginBottom: 14 }} />
-        <div className="skeleton" style={{ height: 40 }} />
+        <div className="skeleton" style={{ height: '1.375rem', marginBottom: '.75rem' }} />
+        <div className="skeleton" style={{ height: '.875rem', width: '60%', marginBottom: '.875rem' }} />
+        <div className="prod-actions">
+          <div className="skeleton" style={{ height: '2.875rem', flex: 1 }} />
+          <div className="skeleton" style={{ height: '2.875rem', flex: 1 }} />
+        </div>
       </div>
     </article>
   )

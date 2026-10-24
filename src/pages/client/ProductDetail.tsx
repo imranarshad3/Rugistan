@@ -190,14 +190,14 @@ export default function ProductDetail() {
             {product.rating_count > 0 ? (
               <>
                 <Stars rating={Number(product.rating_avg)} />
-                <span style={{ color: '#655448' }}>
+                <span style={{ color: 'var(--rg-muted)' }}>
                   {'  '}
                   {Number(product.rating_avg).toFixed(1)} from {product.rating_count} review
                   {product.rating_count === 1 ? '' : 's'}
                 </span>
               </>
             ) : (
-              <span style={{ color: '#655448' }}>No reviews yet — be the first to review this rug.</span>
+              <span style={{ color: 'var(--rg-muted)' }}>No reviews yet — be the first to review this rug.</span>
             )}
           </div>
 
@@ -284,7 +284,7 @@ export default function ProductDetail() {
             <Icon name="heart" /> {saved ? 'Saved to wishlist' : 'Save to wishlist'}
           </button>
 
-          <p style={{ marginTop: 20, fontSize: '0.875rem', color: '#81705f' }}>
+          <p style={{ marginTop: 20, fontSize: '0.875rem', color: 'var(--rg-muted)' }}>
             {[product.material, product.weave_technique, 'Shipping calculated at checkout'].filter(Boolean).join('  ·  ')}
           </p>
 
@@ -422,7 +422,7 @@ function ReviewsSection({
                 {r.author_name.toUpperCase()} · {shortDate(r.created_at)}
               </strong>
               {r.admin_reply && (
-                <p style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #eadfd3', fontSize: '0.875rem' }}>
+                <p style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--rg-line)', fontSize: '0.875rem' }}>
                   <strong>Rugistan:</strong> {r.admin_reply}
                 </p>
               )}

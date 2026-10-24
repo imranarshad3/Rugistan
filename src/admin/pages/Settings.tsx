@@ -585,7 +585,7 @@ function MessagesTab() {
                 </button>
               </div>
             </div>
-            <p style={{ marginTop: 12, lineHeight: 1.7, color: '#5b4637' }}>{m.message}</p>
+            <p style={{ marginTop: 12, lineHeight: 1.7, color: 'var(--rg-ink)' }}>{m.message}</p>
             <p className="tiny" style={{ marginTop: 10 }}>
               {new Date(m.created_at).toLocaleString('en-GB')}
             </p>

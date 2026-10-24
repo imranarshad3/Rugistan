@@ -1,5 +1,5 @@
 import PremiumSelect from '../../components/client/PremiumSelect'
-import { useMoney } from '../../lib/currency'
+import { useApproxMoney } from '../../lib/currency'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { fetchBanners, fetchFilterFacets, fetchProducts, type ProductSort } from '../../lib/api'
@@ -63,7 +63,7 @@ function FilterGroup({
 }
 
 export default function Shop() {
-  const money = useMoney()
+  const money = useApproxMoney()
   const [params, setParams] = useSearchParams()
   const { categories } = useStore()
   const [facets, setFacets] = useState<Facets | null>(null)

@@ -5,6 +5,7 @@ import { fetchProducts } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 import { useCart } from '../../context/CartContext'
 import { useToast } from '../../context/ToastContext'
+import Icon from '../../components/client/Icon'
 import ProductCard from '../../components/client/ProductCard'
 import { PageBanner, SectionTitle } from '../../components/client/Sections'
 import { EmptyState, QuantityPicker, Spinner } from '../../components/client/Primitives'
@@ -196,8 +197,8 @@ export default function Cart() {
               <Link className="btn full" to="/checkout">
                 Proceed to Checkout →
               </Link>
-              <div className="secure">♧ &nbsp; Your details are sent over an encrypted connection</div>
-              <div className="secure">♡ &nbsp; Carefully crafted natural materials</div>
+              <div className="secure"><Icon name="spark" />Your details are sent over an encrypted connection</div>
+              <div className="secure"><Icon name="leaf" />Carefully crafted natural materials</div>
             </aside>
           </div>
         )}

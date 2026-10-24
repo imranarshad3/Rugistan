@@ -1,5 +1,6 @@
 import { useMoney } from '../../lib/currency'
 import { useEffect, useState } from 'react'
+import Icon from '../../components/client/Icon'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { shortDate, titleCase } from '../../lib/format'
@@ -133,7 +134,7 @@ export default function OrderConfirmation() {
                 <span>Total</span>
                 <strong>{money(order.total)}</strong>
               </div>
-              <div className="secure">♧ &nbsp; Payment method: {order.payment_method}</div>
+              <div className="secure"><Icon name="spark" />Payment method: {order.payment_method}</div>
               <p className="subtle">
                 Delivering to {order.city}
                 {order.country ? `, ${order.country}` : ''}

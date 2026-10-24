@@ -76,10 +76,14 @@ export function CategoryTiles({ categories, three = false }: { categories: Categ
           <Link to={`/shop?category=${c.slug}`}>
             <div className="pic">
               <img src={c.image_url || FALLBACK} alt={c.name} loading="lazy" />
+              <span className="tile-veil" aria-hidden="true" />
+              <span className="tile-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+              <div className="tile-copy">
+                <div className="tile-heading"><h3>{c.name}</h3></div>
+                {c.description && <p>{c.description}</p>}
+                <span className="tilelink">Explore collection <span aria-hidden="true">→</span></span>
+              </div>
             </div>
-            <div className="tile-heading"><h3>{c.name}</h3><span className="tile-index">{String(index + 1).padStart(2, '0')}</span></div>
-            <p>{c.description}</p>
-            <span className="tilelink">Explore collection →</span>
           </Link>
         </article>
       ))}

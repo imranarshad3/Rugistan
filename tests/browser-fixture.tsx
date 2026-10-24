@@ -10,9 +10,11 @@ import ProductForm from '../src/admin/pages/ProductForm'
 import { ToastProvider } from '../src/context/ToastContext'
 import { StoreProvider } from '../src/context/StoreContext'
 import '../src/index.css'
+import '../src/styles/design-tokens.css'
 import '../src/styles/admin.css'
 import '../src/styles/select.css'
 import '../src/styles/admin-theme.css'
+import '../src/styles/luxury.css'
 function Dropdown() {
   const [value, setValue] = useState('draft')
   return (

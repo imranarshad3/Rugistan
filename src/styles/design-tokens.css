@@ -1,0 +1,49 @@
+@layer tokens {
+  /* Shared brand primitives. Storefront and studio map these to their own density.
+     Every surface, type size and rhythm value used by the design system layer
+     (luxury.css) resolves back to this file, so the brand has one source of truth. */
+  :root {
+    /* Surfaces, ink and accents */
+    --rg-ivory:#fbf8f2; --rg-paper:#fffdf8; --rg-linen:#f0e9df;
+    --rg-ink:#30251d; --rg-muted:#6f6257; --rg-bronze:#7f5c3c;
+    --rg-line:#ded5c8; --rg-hover:#e9dfd1; --rg-success:#2d644e;
+    /* --rg-bronze clears AA (4.5:1) on every brand surface; the display tone
+       clears AA-large (3:1) and is only for numerals and decoration. */
+    --rg-bronze-display:#9a7546;
+    --rg-danger:#9f4437; --rg-focus:#795331;
+    /* Deep surfaces: footer, studio sidebar, photographic overlays */
+    --rg-espresso:#302820; --rg-espresso-2:#4a3b2e; --rg-espresso-line:#4d4136;
+    --rg-on-dark:#f5eee4; --rg-on-dark-muted:#e1d3c4;
+    /* Interactive */
+    --rg-ink-hover:#514033; --rg-bronze-deep:#795536; --rg-line-strong:#bba88f;
+
+    /* Type */
+    --rg-serif:'DM Serif Display',Georgia,serif; --rg-sans:'DM Sans',Arial,sans-serif;
+    --rg-text-2xs:.625rem; --rg-text-xs:.6875rem; --rg-text-sm:.75rem;
+    --rg-text-base:.8125rem; --rg-text-md:.875rem; --rg-text-lg:.9375rem;
+    --rg-text-xl:1rem;
+    --rg-display-sm:clamp(1.5rem,2.2vw,1.875rem);
+    --rg-display-md:clamp(2rem,3.1vw,3rem);
+    --rg-display-lg:clamp(2.75rem,4.2vw,4.5rem);
+    --rg-tracking-eyebrow:.18em; --rg-tracking-tight:-.035em;
+    --rg-leading-body:1.8;
+
+    /* Rhythm */
+    --rg-space-1:.5rem; --rg-space-2:1rem; --rg-space-3:1.5rem;
+    --rg-space-4:2rem; --rg-space-6:3rem; --rg-space-8:4rem;
+    --rg-section:clamp(3rem,6vw,6rem);
+    --rg-gap-grid:2rem;
+    --rg-measure:27rem;
+
+    /* Navigation: readable link type and a header that condenses on scroll */
+    --rg-nav-h:6.5rem; --rg-nav-h-stuck:5rem;
+    --rg-nav-link:.9375rem; --rg-nav-action:.875rem;
+    --rg-nav-logo:13.5rem; --rg-nav-logo-h:3.5rem; --rg-nav-logo-h-stuck:2.625rem;
+
+    /* Form and motion */
+    --rg-radius:.25rem; --rg-radius-lg:.625rem; --rg-radius-pill:2rem;
+    --rg-control:3rem; --rg-touch:2.75rem;
+    --rg-motion:180ms; --rg-ease:cubic-bezier(.2,.65,.3,1);
+    --rg-shadow-pop:0 .75rem 2rem #30251d1a;
+  }
+}

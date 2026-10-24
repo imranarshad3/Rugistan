@@ -12,6 +12,28 @@ import {
 } from '../../components/client/Sections'
 import type { Banner, ProductFull } from '../../lib/types'
 
+/** Room edits sit beside the category cards and share their card design. */
+const EDITS = [
+  {
+    to: '/shop?room=Bedroom',
+    photo: 'edit-neutral',
+    image: null as string | null,
+    alt: 'A handmade rug in a bedroom',
+    title: 'Bedroom Soft Neutrals',
+    body: 'Quiet textures and a softer landing for your most restful space.',
+    cta: 'Shop Bedroom Rugs',
+  },
+  {
+    to: '/shop?room=Living%20Room',
+    photo: '',
+    image: '/assets/rug_lifestyle_3.jpg',
+    alt: 'A handmade rug in a living room',
+    title: 'Living Room Statements',
+    body: 'Expressive patterns and natural textures to bring your room together.',
+    cta: 'Shop Living Room Rugs',
+  },
+]
+
 export default function Collections() {
   const { categories } = useStore()
   const [banners, setBanners] = useState<Record<string, Banner>>({})
@@ -56,8 +78,23 @@ export default function Collections() {
         />
         <div className="collection-catalog"><CategoryTiles categories={categories} />
         <div className="collection-edits">
-          <Link className="collection-edit" to="/shop?room=Bedroom"><div className="edit-photo edit-neutral"/><h3>Bedroom Soft Neutrals</h3><p>Quiet textures and a softer landing for your most restful space.</p><span>Shop Bedroom Rugs →</span></Link>
-          <Link className="collection-edit" to="/shop?room=Living%20Room"><img src="/assets/rug_lifestyle_3.jpg" alt="A handmade rug in a living room" loading="lazy"/><h3>Living Room Statements</h3><p>Expressive patterns and natural textures to bring your room together.</p><span>Shop Living Room Rugs →</span></Link>
+          {EDITS.map((edit) => (
+            <article className="tile collection-edit" key={edit.to}>
+              <Link to={edit.to}>
+                <div className="pic">
+                  {edit.image
+                    ? <img src={edit.image} alt={edit.alt} loading="lazy" />
+                    : <div className={`edit-photo ${edit.photo}`} role="img" aria-label={edit.alt} />}
+                  <span className="tile-veil" aria-hidden="true" />
+                  <div className="tile-copy">
+                    <div className="tile-heading"><h3>{edit.title}</h3></div>
+                    <p>{edit.body}</p>
+                    <span className="tilelink">{edit.cta} <span aria-hidden="true">→</span></span>
+                  </div>
+                </div>
+              </Link>
+            </article>
+          ))}
         </div></div>
       </section>
 

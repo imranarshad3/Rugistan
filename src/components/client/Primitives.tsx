@@ -11,17 +11,33 @@ export function Reveal({ children, className = '', as: Tag = 'div' }: { children
   useEffect(() => {
     const node = ref.current
     if (!node || shown) return
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShown(true)
-          io.disconnect()
-        }
-      },
-      { rootMargin: '0px 0px -8% 0px', threshold: 0.06 },
-    )
+    let done = false
+    const reveal = () => {
+      if (done) return
+      done = true
+      io.disconnect()
+      window.removeEventListener('scroll', check)
+      window.removeEventListener('resize', check)
+      setShown(true)
+    }
+    // A jump to an anchor, or a fast flick, can skip a section without the
+    // observer ever seeing it intersect — so also reveal anything at or above
+    // the fold on scroll. Content must never stay invisible.
+    const check = () => {
+      if (node.getBoundingClientRect().top < window.innerHeight) reveal()
+    }
+    const io = new IntersectionObserver(([entry]) => entry.isIntersecting && reveal(), {
+      rootMargin: '0px 0px -8% 0px',
+      threshold: 0,
+    })
     io.observe(node)
-    return () => io.disconnect()
+    window.addEventListener('scroll', check, { passive: true })
+    window.addEventListener('resize', check, { passive: true })
+    return () => {
+      io.disconnect()
+      window.removeEventListener('scroll', check)
+      window.removeEventListener('resize', check)
+    }
   }, [shown])
 
   return (
@@ -138,8 +154,8 @@ export function Accordion({ title, children, defaultOpen = false }: { title: str
     <div className="accord">
       <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((v) => !v)}>
         <span>{title}</span>
-        <span aria-hidden="true" style={{ transition: 'transform .3s', transform: open ? 'rotate(180deg)' : 'none' }}>
-          ⌄
+        <span className="accord-chevron" aria-hidden="true" style={{ transform: open ? 'rotate(180deg)' : 'none' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
         </span>
       </button>
       <div id={panelId} className={`panel ${open ? 'open' : ''}`} aria-hidden={!open} inert={!open}>
