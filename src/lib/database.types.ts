@@ -23,6 +23,12 @@ export type Database = {
           }
         },"public": {
           Tables: {
+            order_admin_notes: {
+                Row: { order_id: string; body: string; updated_at: string }
+                Insert: { order_id: string; body?: string; updated_at?: string }
+                Update: { order_id?: string; body?: string; updated_at?: string }
+                Relationships: []
+            },
             product_views: {
               Row: { product_id: string; session_key: string; viewed_at: string }
               Insert: { product_id: string; session_key: string; viewed_at?: string }
@@ -167,14 +173,14 @@ isOneToOne: false
                   ]
                 },"orders": {
                   Row: {
-                    "address_line1": string,"address_line2": string,"admin_note": string,"city": string,"country": string,"created_at": string,"currency": string,"customer_note": string,"discount_amount": number,"email": string,"first_name": string,"id": string,"last_name": string,"order_number": string,"payment_method": string,"payment_status": Database["public"]['Enums']["payment_status"],"phone": string,"postal_code": string,"promo_code": string | null,"province": string,"shipping_amount": number,"shipping_method": string,"status": Database["public"]['Enums']["order_status"],"subtotal": number,"total": number,"updated_at": string,"user_id": string | null
+                    "address_line1": string,"address_line2": string,"city": string,"country": string,"created_at": string,"currency": string,"customer_note": string,"discount_amount": number,"email": string,"first_name": string,"id": string,"last_name": string,"order_number": string,"payment_method": string,"payment_status": Database["public"]['Enums']["payment_status"],"phone": string,"postal_code": string,"promo_code": string | null,"province": string,"shipping_amount": number,"shipping_method": string,"status": Database["public"]['Enums']["order_status"],"subtotal": number,"total": number,"updated_at": string,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "address_line1": string,"address_line2"?: string,"admin_note"?: string,"city": string,"country": string,"created_at"?: string,"currency"?: string,"customer_note"?: string,"discount_amount"?: number,"email": string,"first_name": string,"id"?: string,"last_name": string,"order_number": string,"payment_method"?: string,"payment_status"?: Database["public"]['Enums']["payment_status"],"phone"?: string,"postal_code"?: string,"promo_code"?: string | null,"province"?: string,"shipping_amount"?: number,"shipping_method"?: string,"status"?: Database["public"]['Enums']["order_status"],"subtotal"?: number,"total"?: number,"updated_at"?: string,"user_id"?: string | null
+                    "address_line1": string,"address_line2"?: string,"city": string,"country": string,"created_at"?: string,"currency"?: string,"customer_note"?: string,"discount_amount"?: number,"email": string,"first_name": string,"id"?: string,"last_name": string,"order_number": string,"payment_method"?: string,"payment_status"?: Database["public"]['Enums']["payment_status"],"phone"?: string,"postal_code"?: string,"promo_code"?: string | null,"province"?: string,"shipping_amount"?: number,"shipping_method"?: string,"status"?: Database["public"]['Enums']["order_status"],"subtotal"?: number,"total"?: number,"updated_at"?: string,"user_id"?: string | null
                   }
                   Update: {
-                    "address_line1"?: string,"address_line2"?: string,"admin_note"?: string,"city"?: string,"country"?: string,"created_at"?: string,"currency"?: string,"customer_note"?: string,"discount_amount"?: number,"email"?: string,"first_name"?: string,"id"?: string,"last_name"?: string,"order_number"?: string,"payment_method"?: string,"payment_status"?: Database["public"]['Enums']["payment_status"],"phone"?: string,"postal_code"?: string,"promo_code"?: string | null,"province"?: string,"shipping_amount"?: number,"shipping_method"?: string,"status"?: Database["public"]['Enums']["order_status"],"subtotal"?: number,"total"?: number,"updated_at"?: string,"user_id"?: string | null
+                    "address_line1"?: string,"address_line2"?: string,"city"?: string,"country"?: string,"created_at"?: string,"currency"?: string,"customer_note"?: string,"discount_amount"?: number,"email"?: string,"first_name"?: string,"id"?: string,"last_name"?: string,"order_number"?: string,"payment_method"?: string,"payment_status"?: Database["public"]['Enums']["payment_status"],"phone"?: string,"postal_code"?: string,"promo_code"?: string | null,"province"?: string,"shipping_amount"?: number,"shipping_method"?: string,"status"?: Database["public"]['Enums']["order_status"],"subtotal"?: number,"total"?: number,"updated_at"?: string,"user_id"?: string | null
                   }
                   Relationships: [
                     

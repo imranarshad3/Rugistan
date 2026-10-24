@@ -65,3 +65,27 @@ Requires server-only `SUPABASE_SERVICE_ROLE_KEY` and `CLERK_SECRET_KEY` plus the
 Never put private payment credentials in `settings`: storefront-facing store/payment settings are public. Keep gateway credentials in a trusted backend secret store.
 
 Customized Clerk screens pin `@clerk/ui` through the provider so remote UI releases cannot silently change their structure. Upgrade and test that dependency deliberately. Reference: https://clerk.com/docs/reference/components/versioning
+
+### Hosted rollout status
+
+The existing hosted Rugistan schema was originally bootstrapped outside migration history. The production rollout now records `20261024002000`, `20261024050719`, `20261024055027`, and `20261024190354` in `supabase_migrations.schema_migrations`. The rollout preserved the existing 8 products, 19 media rows, 29 variants, 2 profiles, and 0 orders.
+
+Do not replay initial schema files or run `db reset --linked` against production. Before adopting automated `db push`, capture and reconcile the manually bootstrapped baseline; the earlier schema files are not represented by matching hosted history entries. The checked-in SQL is also exercised against a disposable local database with `npm run test:db`.
+
+The deployed site still uses a Clerk development instance. Configure a Clerk production instance and its allowed origins, update the Vercel public Clerk key, verify Supabase third-party authentication for that issuer, and run signed-in customer/admin acceptance checks before treating authentication as production-ready.
+
+Signed-in acceptance checks against the deployed Vercel site passed for the existing administrator (account dashboard shortcut plus nine read-only admin routes) and a temporary development customer (profile synchronization, admin denial, order-history rendering, and sign-out). Test sessions were revoked and temporary Clerk/Supabase fixtures removed. These checks validate the current development-backed deployment; repeat them after the eventual Clerk production-instance switch.
+
+Clerk production requires an owned custom domain with DNS access; a `*.vercel.app` hostname cannot host the production Clerk configuration. See https://clerk.com/docs/guides/development/deployment/vercel. No custom domain is currently linked to this project. Do not replace the working development key until the production domain, DNS, issuer integration and production admin identity are ready. Development and production Clerk instances have separate user identities, so changing API keys alone does not migrate administrator access or existing profile relationships.
+
+### Server write boundary
+
+Checkout, contact, newsletter and product-view writes use `/api/store`. The Vercel function verifies Clerk session JWTs when supplied, derives a client identity from Vercel's overwritten IP header, and consumes atomic database quotas before writing. Guest checkout remains supported. Public Supabase clients cannot invoke the privileged write RPCs or insert into these submission tables.
+
+Configure `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CLERK_SECRET_KEY` and a random `RATE_LIMIT_SECRET` (at least 32 characters) as **server-only** secrets. Never prefix these with `VITE_`. `npm run dev` serves the same API through Vite's Node middleware; restart after environment changes. Deployment origins are restricted to the production hostname and Vercel's deployment URL; update the explicit allowlist when adding an owned domain.
+
+Quotas per trusted IP: checkout 5 per 15 minutes; contact/newsletter 5 per hour; views 120 per hour. Separate daily global budgets bound distributed write volume (checkout/contact 1,000, newsletter 2,000, views 200,000). Counters contain keyed hashes, not raw IP addresses, and expired counters are cleaned as requests arrive. Quotas are not a guarantee against distributed denial of service; use Vercel's platform firewall/bot controls if traffic warrants it. Do not put an untrusted proxy in front of the deployment without revisiting the client-IP trust boundary.
+
+Staff notes live in `order_admin_notes` under administrator-only RLS; customer order rows never contain them. Existing notes are preserved by the security migration. Apply migrations only after staging the corresponding API/frontend release, and promote immediately after verification. Do not roll back to a frontend that calls direct public write paths after this migration.
+
+Run `npm test`, `npm run test:db`, `npm run test:browser`, `npm run lint` and `npm run build`. Database tests create and delete an isolated local database; they never reset the hosted project. `npm run check:production` additionally requires live Clerk keys; an owned custom domain is still required before switching the current development Clerk instance to production. Password storage/hashing and session issuance remain managed by Clerk.

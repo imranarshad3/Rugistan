@@ -1,7 +1,8 @@
+import { storeWrite } from '../../lib/storeApi'
 import Select from '../../components/ui/Select'
 import { useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { supabase, readableError } from '../../lib/supabase'
+import { readableError } from '../../lib/supabase'
 import { useStore } from '../../context/StoreContext'
 import { useToast } from '../../context/ToastContext'
 import { PageBanner, ProcessSteps, SectionTitle } from '../../components/client/Sections'
@@ -37,7 +38,7 @@ export default function Contact() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
-    const { error } = await supabase.from('contact_messages').insert({
+    const { error } = await storeWrite('contact',{
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),
       email: form.email.trim().toLowerCase(),

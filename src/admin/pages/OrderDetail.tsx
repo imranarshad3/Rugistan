@@ -37,7 +37,9 @@ export default function OrderDetail() {
     if (found) {
       setStatus(found.status)
       setPaymentStatus(found.payment_status)
-      setAdminNote(found.admin_note)
+      const { data: teamNote, error: noteError } = await supabase.from('order_admin_notes').select('body').eq('order_id', id).maybeSingle()
+      if (noteError) setError('Could not load the internal note. Please try again.')
+      setAdminNote(teamNote?.body ?? '')
     }
     setLoading(false)
   }, [id])
@@ -78,7 +80,7 @@ export default function OrderDetail() {
 
   async function saveNote() {
     setBusy('note')
-    const { error: err } = await supabase.from('orders').update({ admin_note: adminNote }).eq('id', id)
+    const { error: err } = await supabase.from('order_admin_notes').upsert({ order_id: id, body: adminNote, updated_at: new Date().toISOString() })
     setBusy('')
     if (err) {
       toast.error(readableError(err))
@@ -233,7 +235,7 @@ export default function OrderDetail() {
             <div className="sep" />
 
             <Field label="Internal note" hint="Only visible to your team.">
-              <textarea className="textarea" style={{ height: 90 }} value={adminNote} onChange={(e) => setAdminNote(e.target.value)} />
+              <textarea className="textarea" style={{ height: 90 }} maxLength={10000} value={adminNote} onChange={(e) => setAdminNote(e.target.value)} />
             </Field>
             <button type="button" className="btn soft" onClick={() => void saveNote()} disabled={busy === 'note'}>
               {busy === 'note' ? <Spinner /> : 'Save Note'}

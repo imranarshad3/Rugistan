@@ -1108,3 +1108,8 @@
  .rg-client .shop-hero-caption>span{display:none}
  .rg-client .shop-hero-note{margin-top:1.5rem}
 }
+
+.rg-client .acct-nav .acct-admin-link{display:flex;align-items:center;gap:.65rem;margin:.75rem .5rem;padding:.9rem .75rem;background:#e7ece4;border:1px solid #c8d3c1;border-radius:.35rem;color:#375344;font-size:.8125rem;font-weight:600;transition:background .2s}
+.rg-client .acct-admin-link span{flex:1}
+.rg-client .acct-nav .acct-admin-link:hover{background:#d9e3d5}
+.rg-client .acct-admin-link:focus-visible{outline:2px solid #375344;outline-offset:3px}

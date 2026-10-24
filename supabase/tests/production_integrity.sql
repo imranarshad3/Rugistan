@@ -1,7 +1,7 @@
 -- Run only against an isolated migrated database. Every fixture rolls back.
 begin;
 create extension if not exists pgtap;
-select plan(41);
+select plan(60);
 insert into public.profiles(id,email,role) values('user_audit_admin','admin@example.test','admin'),('user_audit_customer','buyer@example.test','customer'),('user_audit_other','other@example.test','customer');
 insert into public.products(id,name,slug,sku,price,stock_quantity,status) values
  ('10000000-0000-4000-8000-000000000001','Audit rug','audit-rug','AUDIT1',100,20,'published'),
@@ -24,6 +24,9 @@ reset role;
 select set_config('request.jwt.claims','{}',true);
 set local role anon;
 select throws_ok($$select public.sync_cart('[]')$$,'42501',null,'anonymous cart RPC denied');
+select throws_ok($$select public.place_order('[]','{}','{}')$$,'42501',null,'anonymous checkout cannot bypass gateway');
+reset role;
+set local role service_role;
 select throws_ok($$select public.place_order('[]','{}','{}')$$,'P0001','Your cart is empty.','empty checkout rejected');
 select throws_ok($$select public.place_order('[{"product_id":"10000000-0000-4000-8000-000000000002","quantity":1}]','{}','{}')$$,'P0001','Enter a valid email address.','server validates checkout contact');
 select lives_ok($$select public.place_order('[{"product_id":"10000000-0000-4000-8000-000000000001","variant_id":"20000000-0000-4000-8000-000000000001","quantity":2}]','{"email":"guest@example.test","first_name":"Guest","last_name":"Buyer"}','{"address_line1":"123 Test St","city":"Lahore","country":"Pakistan"}','30000000-0000-4000-8000-000000000001','cod','LAST','','40000000-0000-4000-8000-000000000001')$$,'guest checkout succeeds');
@@ -55,8 +58,9 @@ select is((select amount from public.shipping_methods limit 1),5.00::numeric,'fa
 select throws_ok($$update public.settings set value='{"currency":"PKR"}' where key='store'$$,'P0001',null,'base currency cannot corrupt existing financial units');
 reset role;
 select set_config('request.jwt.claims','{"sub":"user_audit_customer","role":"authenticated"}',true);
-set local role authenticated;
+reset role;
 select lives_ok($$select public.place_order('[{"product_id":"10000000-0000-4000-8000-000000000002","quantity":1}]','{"email":"buyer@example.test","first_name":"Buyer","last_name":"Test"}','{"address_line1":"123 Test St","city":"Lahore","country":"Pakistan"}','30000000-0000-4000-8000-000000000001','cod')$$,'authenticated checkout creates an owned order');
+set local role authenticated;
 select is((select count(*)::int from public.orders),1,'customer sees only owned order');
 reset role;
 select set_config('request.jwt.claims','{"sub":"user_audit_other","role":"authenticated"}',true);
@@ -72,6 +76,40 @@ select set_config('request.jwt.claims','{}',true);
 update public.product_variants set is_active=false where id='20000000-0000-4000-8000-000000000001';
 select throws_ok($$select public.place_order('[{"product_id":"10000000-0000-4000-8000-000000000001","quantity":1}]','{"email":"inactive@example.test","first_name":"Buyer","last_name":"Test"}','{"address_line1":"123 Test St","city":"Lahore","country":"Pakistan"}','30000000-0000-4000-8000-000000000001','cod')$$,'P0001','Please choose a size for this rug.','inactive sizes cannot be bypassed by omitting variant');
 select is(public.release_expired_reservations(),0,'reservation release is idempotent');
+
+select ok(to_regprocedure('public.admin_customers(text)') is not null, 'customer directory RPC remains available after migrations');
+select ok(not has_function_privilege('anon','public.admin_dashboard_stats(timestamp with time zone,timestamp with time zone)','execute'), 'anonymous callers cannot invoke admin analytics');
+select ok(not has_function_privilege('authenticated','public.refresh_product_rating()','execute'), 'rating trigger cannot be invoked as an RPC');
+
+-- Private notes remain readable only by staff; wildcard order responses have no private field.
+select ok(not exists(select 1 from information_schema.columns where table_schema='public' and table_name='orders' and column_name='admin_note'),'orders no longer expose private notes');
+insert into public.order_admin_notes(order_id,body) select id,'Team secret' from public.orders;
+select set_config('request.jwt.claims','{"sub":"user_audit_customer","role":"authenticated"}',true);
+set local role authenticated;
+select is((select count(*)::int from public.order_admin_notes),0,'owner cannot read internal notes');
+select throws_ok($$insert into public.order_admin_notes(order_id,body) select id,'forged' from public.orders$$,'42501',null,'owner cannot write staff notes');
+select throws_ok($$select public.store_write('newsletter','{"email":"a@example.test"}')$$,'42501',null,'authenticated cannot bypass gateway');
+select throws_ok($$insert into public.contact_messages(first_name,email,message) values('Bot','bot@example.test','Spam message')$$,'42501',null,'direct contact write blocked');
+select throws_ok($$insert into public.newsletter_subscribers(email) values('bot@example.test')$$,'42501',null,'direct newsletter write blocked');
+select throws_ok($$insert into public.product_views(product_id,session_key) values('10000000-0000-4000-8000-000000000001',gen_random_uuid())$$,'42501',null,'direct analytics write blocked');
+reset role;
+select set_config('request.jwt.claims','{"sub":"user_audit_admin","role":"authenticated"}',true);
+set local role authenticated;
+select is((select count(*)::int from public.order_admin_notes),2,'admin can read private notes');
+select lives_ok($$update public.order_admin_notes set body='Updated by staff'$$,'admin can update private notes');
+reset role;
+set local role service_role;
+select lives_ok($$select public.store_write('newsletter','{"email":"valid@example.test","is_read":true}')$$,'server newsletter flow accepts valid email');
+select throws_ok($$select public.store_write('contact','{"email":"valid@example.test","first_name":"Test","message":"short"}')$$,'P0001',null,'server rejects malformed contact');
+select is((public.consume_store_quota('contact',repeat('a',64))->>'allowed')::boolean,true,'first trusted-IP request allowed');
+select public.consume_store_quota('contact',repeat('a',64)) from generate_series(1,4);
+select is((public.consume_store_quota('contact',repeat('a',64))->>'allowed')::boolean,false,'sixth request denied despite changed form identities');
+select public.consume_store_quota('contact',repeat('a',64)) from generate_series(1,1000);
+reset role;
+select is((select hits from private.api_rate_limits where bucket like 'contact:global:%'),5,'denied retries do not consume the global budget');
+set local role service_role;
+select is((public.consume_store_quota('contact',repeat('b',64))->>'allowed')::boolean,true,'different trusted IP retains quota');
+reset role;
 
 select * from finish();
 rollback;

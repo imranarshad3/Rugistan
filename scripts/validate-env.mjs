@@ -27,6 +27,16 @@ try {
 } catch {
   problems.push('Supabase URL is invalid')
 }
+if (process.env.VERCEL || process.argv.includes('--production')) {
+  for (const name of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'CLERK_SECRET_KEY', 'RATE_LIMIT_SECRET'])
+    if (!env[name]) problems.push(`${name} server configuration is missing`)
+  if (env.RATE_LIMIT_SECRET && env.RATE_LIMIT_SECRET.length < 32)
+    problems.push('RATE_LIMIT_SECRET must contain at least 32 random characters')
+  if (env.CLERK_SECRET_KEY && !env.CLERK_SECRET_KEY.startsWith('sk_'))
+    problems.push('CLERK_SECRET_KEY must be a server credential')
+  if (env.SUPABASE_URL && env.SUPABASE_URL !== env.VITE_SUPABASE_URL)
+    problems.push('Server and browser Supabase projects must match')
+}
 if (process.argv.includes('--production') && !env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith('pk_live_'))
   problems.push('A live Clerk publishable key is required for production release')
 if (problems.length) {

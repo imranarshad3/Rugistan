@@ -16,6 +16,8 @@ export function setSupabaseTokenProvider(provider: (() => Promise<string | null>
   tokenProvider = provider
 }
 
+export async function getStoreAccessToken() { return tokenProvider ? tokenProvider() : null }
+
 export const supabase = createClient<Database>(url, publishableKey, {
   accessToken: async () => tokenProvider ? tokenProvider() : null,
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },

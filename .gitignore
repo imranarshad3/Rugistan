@@ -33,3 +33,5 @@ supabase/.branches/
 # Browser verification artifacts
 /test-results/
 /playwright-report/
+.vercel
+.env*

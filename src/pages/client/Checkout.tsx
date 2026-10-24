@@ -1,3 +1,4 @@
+import { storeWrite } from '../../lib/storeApi'
 import { useMoney, useCurrency } from '../../lib/currency'
 import { money as baseMoney } from '../../lib/format'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
@@ -119,7 +120,7 @@ export default function Checkout() {
     }
 
     setBusy(true)
-    const { data, error } = await supabase.rpc('place_order', {
+    const { data, error } = await storeWrite('checkout', {
       p_request_id: requestId,
       p_items: cart.lines.map((l) => ({
         product_id: l.productId,

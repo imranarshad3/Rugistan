@@ -1,6 +1,7 @@
+import { storeWrite } from '../../lib/storeApi'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { supabase, readableError } from '../../lib/supabase'
+import { readableError } from '../../lib/supabase'
 import { useStore } from '../../context/StoreContext'
 import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
@@ -177,7 +178,7 @@ function Newsletter() {
       return
     }
     setBusy(true)
-    const { error } = await supabase.from('newsletter_subscribers').insert({ email: value })
+    const { error } = await storeWrite('newsletter',{ email: value })
     setBusy(false)
     if (error && !/duplicate|already exists/i.test(error.message)) {
       toast.error(readableError(error))

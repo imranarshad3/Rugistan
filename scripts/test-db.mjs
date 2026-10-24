@@ -34,6 +34,10 @@ try {
   for (const name of readdirSync('supabase/migrations')
     .filter((x) => x.endsWith('.sql'))
     .sort()) {
+    if (name.endsWith('_security_gateway.sql')) migrations += `
+      insert into public.orders(id,order_number,email,first_name,last_name,address_line1,city,country,admin_note)
+      values('90000000-0000-4000-8000-000000000001','MIGRATION-LEGACY','migration@example.test','Test','Buyer','Test St','Lahore','Pakistan',repeat('x',10001));
+    `
     // pg_cron can be installed only in its configured database, usually postgres.
     migrations +=
       '\n' +
@@ -45,6 +49,10 @@ try {
         )
   }
   sql(db, 'begin;\n' + migrations + '\ncommit;')
+  if (sql(db, "select length(body) from public.order_admin_notes where order_id='90000000-0000-4000-8000-000000000001'").trim() !== '10001')
+    throw new Error('Legacy staff note was not preserved')
+  sql(db, "delete from public.orders where id='90000000-0000-4000-8000-000000000001';")
+  console.log('PASS: migration preserves long legacy staff notes and cascading deletion.')
   const output = sql(db, readFileSync('supabase/tests/production_integrity.sql', 'utf8'))
   const checks = output.split('\n').filter((x) => /^(not )?ok \d+/.test(x))
   console.log(checks.join('\n'))
@@ -78,6 +86,13 @@ try {
   )
     throw new Error('Concurrent promotion redemption failed')
   console.log(`PASS: ${checks.length} database checks and concurrent last-redemption race.`)
+  const quotas = await Promise.all(Array.from({ length: 12 }, () => run('docker', [
+    ...args(db), '-c', "select public.consume_store_quota('checkout',repeat('c',64))->>'allowed';",
+  ])))
+  if (quotas.filter(result => result.stdout.trim() === 'true').length !== 5)
+    throw new Error('Concurrent quota exceeded the fixed trusted-client budget')
+  console.log('PASS: concurrent request quota (5 of 12 allowed).')
+
   sql(
     'postgres',
     "begin;create extension if not exists pg_cron;select cron.schedule('rugistan-audit-scheduler-validation','*/15 * * * *','select 1');rollback;",

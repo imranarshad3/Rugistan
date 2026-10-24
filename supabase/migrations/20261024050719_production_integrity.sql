@@ -457,9 +457,6 @@ begin
   return res;
 end $$;
 
--- 4. admin_customers: accurate active orders count and last_order_at
-drop function if exists public.admin_customers(text);
-
 create or replace function public.admin_set_order_status(p_order_id uuid, p_status public.order_status, p_note text default '')
 returns void language plpgsql security definer set search_path = public as $$
 declare cur public.order_status;

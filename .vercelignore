@@ -1,0 +1,11 @@
+.env*
+!.env.example
+.git
+.agents
+.codex
+supabase/.temp
+supabase/.branches
+supabase/backups
+test-results
+playwright-report
+.vercel

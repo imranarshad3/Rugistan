@@ -1,3 +1,4 @@
+import { storeWrite } from '../../lib/storeApi'
 import Select from '../../components/ui/Select'
 import { isVideoMedia } from '../../lib/productMedia'
 import { useMoney } from '../../lib/currency'
@@ -41,7 +42,7 @@ export default function ProductDetail() {
       sessionStorage.setItem('rugistan_view_session', sessionKey)
     } catch { return }
     // The unique key also deduplicates React StrictMode effects and page reloads.
-    void supabase.from('product_views').insert({ product_id: productId, session_key: sessionKey })
+    void storeWrite('view',{ product_id: productId, session_key: sessionKey })
       .then(() => undefined)
   }, [productId, authLoading, isAdmin])
 
