@@ -71,10 +71,10 @@ export default function Select({ children, className = '', value, defaultValue, 
   useEffect(() => { if (open) menu.current?.querySelector(`[data-option-index="${active}"]`)?.scrollIntoView({ block: 'nearest' }) }, [active, open])
   const label = props['aria-label'] || props.name || 'Select option'
   return <span className="modern-select-wrap">
-    <select {...props} className="modern-select-native" ref={native} value={value ?? local} disabled={disabled} onChange={onChange} tabIndex={-1} aria-hidden="true" onInvalid={event => { event.preventDefault(); trigger.current?.focus() }}>
+    <select {...props} id={props.id ? `${props.id}-native` : undefined} className="modern-select-native" ref={native} value={value ?? local} disabled={disabled} onChange={onChange} tabIndex={-1} aria-hidden="true" onInvalid={event => { event.preventDefault(); trigger.current?.focus() }}>
       {children}
     </select>
-    <button type="button" ref={trigger} className={`modern-select-trigger ${className}`} role="combobox" aria-label={label} aria-labelledby={props['aria-labelledby']} aria-expanded={open && !disabled} aria-controls={id} aria-haspopup="listbox" aria-activedescendant={open ? `${id}-${active}` : undefined} disabled={disabled}
+    <button type="button" id={props.id} ref={trigger} className={`modern-select-trigger ${className}`} role="combobox" aria-invalid={props['aria-invalid']} aria-describedby={props['aria-describedby']} aria-required={props.required || undefined} aria-label={label} aria-labelledby={props['aria-labelledby']} aria-expanded={open && !disabled} aria-controls={id} aria-haspopup="listbox" aria-activedescendant={open ? `${id}-${active}` : undefined} disabled={disabled}
       onClick={() => { setActive(index); setOpen(!open) }} onBlur={event => { if (!menu.current?.contains(event.relatedTarget)) setOpen(false) }}
       onKeyDown={event => {
         if (event.key === 'Tab') { setOpen(false); return }

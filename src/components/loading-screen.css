@@ -1,0 +1,19 @@
+.rugistan-loading{min-height:100dvh;display:grid;place-items:center;position:relative;overflow:hidden;padding:3rem 1.5rem;background:radial-gradient(ellipse at 50% 35%,#fffef9 0%,#f3f3e9 65%,#ebeede 100%);color:#2d4436;text-align:center;font-family:'DM Sans',Arial,sans-serif}
+.rugistan-loading:before,.rugistan-loading:after{content:'';position:absolute;inset:1.25rem;border:1px solid #c9d3bb66;pointer-events:none}
+.rugistan-loading:after{inset:1.625rem;border-color:#e0e4d7}
+.loading-center{position:relative;z-index:1;width:min(100%,23rem);display:flex;align-items:center;flex-direction:column}
+.loading-woven{position:relative;width:3.5rem;height:3.5rem;transform:rotate(45deg);border:1px solid #a8b794;background:repeating-linear-gradient(0deg,transparent 0 5px,#b7c4a159 5px 6px),repeating-linear-gradient(90deg,#e3ead7 0 5px,#aab98c77 5px 6px);margin-bottom:2rem;box-shadow:0 0 0 .5rem #eef2e5,0 0 0 .5625rem #cdd7bd;animation:wovenBreath 3s ease-in-out infinite}
+.loading-woven span{position:absolute;inset:.625rem;border:1px solid #8e9e74}
+.loading-woven span:nth-child(2){inset:1.125rem;background:#8f9b72;border-color:#82916a}
+.loading-woven span:nth-child(3){inset:1.5rem;background:#f6f3dc;border:0}
+.loading-wordmark{font:3.25rem/1.1 Georgia,serif;letter-spacing:-.15rem;color:#2c4335}
+.loading-tagline{font-size:.5625rem;letter-spacing:.35em;color:#8b714b;margin-top:.75rem;font-weight:600}
+.loading-rule{width:2.5rem;height:1px;background:#b49a6c;margin:1.875rem 0 1.25rem}
+.loading-center p{margin:0;font-size:.9375rem;font-weight:500;letter-spacing:.01em}
+.loading-caption{font-size:.75rem;color:#75816c;margin-top:.5rem;line-height:1.6}
+.loading-track{height:2px;width:8rem;overflow:hidden;margin-top:1.75rem;background:#dfe6d4;border-radius:2px}
+.loading-track span{display:block;width:45%;height:100%;background:linear-gradient(90deg,#8a9e75,#b49a6c);animation:loadingThread 1.8s cubic-bezier(.4,0,.2,1) infinite}
+.loading-footer{position:absolute;bottom:2.75rem;font-size:.5625rem;letter-spacing:.22em;color:#7c876f}
+@keyframes loadingThread{from{transform:translateX(-110%)}to{transform:translateX(330%)}}
+@keyframes wovenBreath{50%{opacity:.65;box-shadow:0 0 0 .75rem #eef2e5,0 0 0 .8125rem #cdd7bd}}
+@media(prefers-reduced-motion:reduce){.loading-woven,.loading-track span{animation:none}.loading-track span{width:100%}}

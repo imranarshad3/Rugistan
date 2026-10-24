@@ -12,6 +12,11 @@ function normalise(rows: unknown): ProductFull[] {
   }))
 }
 
+function ilikeValue(value: string): string {
+  const literal = value.slice(0, 200).replace(/[\\%_]/g, c => '\\' + c)
+  return JSON.stringify(`%${literal}%`)
+}
+
 export type ProductSort = 'featured' | 'newest' | 'price-asc' | 'price-desc' | 'name' | 'rating'
 
 export type ProductQuery = {
@@ -30,8 +35,8 @@ export type ProductQuery = {
 }
 
 export async function fetchProducts(q: ProductQuery = {}): Promise<{ products: ProductFull[]; total: number }> {
-  const perPage = q.perPage ?? 12
-  const page = Math.max(q.page ?? 1, 1)
+  const perPage = Number.isFinite(q.perPage) ? Math.min(100, Math.max(1, Math.floor(q.perPage!))) : 12
+  const page = Number.isFinite(q.page) ? Math.min(10000, Math.max(1, Math.floor(q.page!))) : 1
 
   let query = supabase
     .from('products')
@@ -39,7 +44,8 @@ export async function fetchProducts(q: ProductQuery = {}): Promise<{ products: P
     .eq('status', 'published')
 
   if (q.categories?.length) {
-    const { data: cats } = await supabase.from('categories').select('id').in('slug', q.categories)
+    const { data: cats, error: categoryError } = await supabase.from('categories').select('id').in('slug', q.categories)
+    if (categoryError) throw categoryError
     const ids = (cats ?? []).map((c) => c.id)
     if (!ids.length) return { products: [], total: 0 }
     query = query.in('category_id', ids)
@@ -47,11 +53,13 @@ export async function fetchProducts(q: ProductQuery = {}): Promise<{ products: P
 
   if (q.sizes?.length) {
     // Size lives on the variant, so resolve matching products first.
-    const { data: variants } = await supabase
+    const { data: variants, error: variantError } = await supabase
       .from('product_variants')
       .select('product_id')
       .in('label', q.sizes)
       .gt('stock_quantity', 0)
+      .eq('is_active', true)
+    if (variantError) throw variantError
     const ids = [...new Set((variants ?? []).map((v) => v.product_id))]
     if (!ids.length) return { products: [], total: 0 }
     query = query.in('id', ids)
@@ -59,7 +67,7 @@ export async function fetchProducts(q: ProductQuery = {}): Promise<{ products: P
 
   if (q.styles?.length) query = query.in('style', q.styles)
   if (q.materials?.length) {
-    query = query.or(q.materials.map((m) => `material.ilike.%${m}%`).join(','))
+    query = query.or(q.materials.map((m) => `material.ilike.${ilikeValue(m)}`).join(','))
   }
   if (q.rooms?.length) query = query.in('room', q.rooms)
   if (typeof q.minPrice === 'number') query = query.gte('price', q.minPrice)
@@ -68,16 +76,16 @@ export async function fetchProducts(q: ProductQuery = {}): Promise<{ products: P
 
   const term = q.search?.trim()
   if (term) {
-    const safe = term.replace(/[%,()]/g, ' ')
+    const safe = ilikeValue(term)
     query = query.or(
       [
-        `name.ilike.%${safe}%`,
-        `short_description.ilike.%${safe}%`,
-        `description.ilike.%${safe}%`,
-        `material.ilike.%${safe}%`,
-        `color.ilike.%${safe}%`,
-        `style.ilike.%${safe}%`,
-        `sku.ilike.%${safe}%`,
+        `name.ilike.${safe}`,
+        `short_description.ilike.${safe}`,
+        `description.ilike.${safe}`,
+        `material.ilike.${safe}`,
+        `color.ilike.${safe}`,
+        `style.ilike.${safe}`,
+        `sku.ilike.${safe}`,
       ].join(','),
     )
   }
@@ -153,12 +161,13 @@ export async function fetchBanners(): Promise<Record<string, Banner>> {
 }
 
 export async function fetchPage(slug: string): Promise<Page | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('pages')
     .select('*')
     .eq('slug', slug)
     .eq('status', 'published')
     .maybeSingle()
+  if (error) throw error
   return data ?? null
 }
 

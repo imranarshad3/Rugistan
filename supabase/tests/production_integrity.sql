@@ -1,0 +1,77 @@
+-- Run only against an isolated migrated database. Every fixture rolls back.
+begin;
+create extension if not exists pgtap;
+select plan(41);
+insert into public.profiles(id,email,role) values('user_audit_admin','admin@example.test','admin'),('user_audit_customer','buyer@example.test','customer'),('user_audit_other','other@example.test','customer');
+insert into public.products(id,name,slug,sku,price,stock_quantity,status) values
+ ('10000000-0000-4000-8000-000000000001','Audit rug','audit-rug','AUDIT1',100,20,'published'),
+ ('10000000-0000-4000-8000-000000000002','Other rug','other-rug','AUDIT2',50,20,'published');
+insert into public.product_variants(id,product_id,label,stock_quantity) values('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','5x8',20);
+insert into public.shipping_methods(id,name,amount) values('30000000-0000-4000-8000-000000000001','Audit shipping',5);
+insert into public.settings(key,value) values('store','{"currency":"USD"}'),('payments','{"offline_methods":[{"id":"cod","label":"Cash on delivery","enabled":true,"marks_as":"unpaid"}]}');
+insert into public.promo_codes(code,type,value,usage_limit) values('LAST','fixed',10,1);
+select set_config('request.jwt.claims','{"sub":"user_audit_customer","role":"authenticated"}',true);
+set local role authenticated;
+select is(public.is_admin(),false,'customer is not admin');
+select throws_ok($$update public.profiles set role='admin' where id='user_audit_customer'$$,'42501',null,'customer cannot promote self');
+select throws_ok($$select public.admin_save_shipping('[]')$$,'42501',null,'customer cannot change delivery methods');
+select lives_ok($$select public.sync_cart('[{"product_id":"10000000-0000-4000-8000-000000000001","variant_id":"20000000-0000-4000-8000-000000000001","quantity":2}]')$$,'account cart persists');
+select lives_ok($$select public.sync_cart('[{"product_id":"10000000-0000-4000-8000-000000000001","variant_id":"20000000-0000-4000-8000-000000000001","quantity":2}]',true)$$,'guest merge retry is safe');
+select is((select quantity from public.cart_items limit 1),2,'merge does not duplicate quantities');
+select throws_ok($$select public.sync_cart('[{"product_id":"10000000-0000-4000-8000-000000000001","quantity":1}]')$$,'P0001','Please choose a size for this rug.','variant omission rejected');
+select is((select count(*)::int from public.cart_items),1,'failed cart replacement preserves previous cart');
+reset role;
+select set_config('request.jwt.claims','{}',true);
+set local role anon;
+select throws_ok($$select public.sync_cart('[]')$$,'42501',null,'anonymous cart RPC denied');
+select throws_ok($$select public.place_order('[]','{}','{}')$$,'P0001','Your cart is empty.','empty checkout rejected');
+select throws_ok($$select public.place_order('[{"product_id":"10000000-0000-4000-8000-000000000002","quantity":1}]','{}','{}')$$,'P0001','Enter a valid email address.','server validates checkout contact');
+select lives_ok($$select public.place_order('[{"product_id":"10000000-0000-4000-8000-000000000001","variant_id":"20000000-0000-4000-8000-000000000001","quantity":2}]','{"email":"guest@example.test","first_name":"Guest","last_name":"Buyer"}','{"address_line1":"123 Test St","city":"Lahore","country":"Pakistan"}','30000000-0000-4000-8000-000000000001','cod','LAST','','40000000-0000-4000-8000-000000000001')$$,'guest checkout succeeds');
+select lives_ok($$select public.place_order('[{"product_id":"10000000-0000-4000-8000-000000000001","variant_id":"20000000-0000-4000-8000-000000000001","quantity":2}]','{"email":"guest@example.test","first_name":"Guest","last_name":"Buyer"}','{"address_line1":"123 Test St","city":"Lahore","country":"Pakistan"}','30000000-0000-4000-8000-000000000001','cod','LAST','','40000000-0000-4000-8000-000000000001')$$,'checkout retry returns same order');
+reset role;
+select is((select count(*)::int from public.orders),1,'idempotency prevents duplicate orders');
+select is((select stock_quantity from public.products where sku='AUDIT1'),18,'product inventory deducted once');
+select is((select stock_quantity from public.product_variants limit 1),18,'variant inventory deducted once');
+select is((select total from public.orders),195.00::numeric,'prices shipping and discount are server authoritative');
+select is((select used_count from public.promo_codes where code='LAST'),1,'promotion redeemed once');
+select is((public.track_order((select order_number from public.orders),'guest@example.test')->>'found')::boolean,false,'order number and known email do not disclose guest order');
+select is((public.track_order((select order_number from public.orders),'guest@example.test',(select id::text from public.orders))->>'found')::boolean,true,'private tracking key retrieves guest order');
+select throws_ok($$select public.place_order('[{"product_id":"10000000-0000-4000-8000-000000000002","quantity":1}]','{"email":"second@example.test","first_name":"Second","last_name":"Buyer"}','{"address_line1":"123 Test St","city":"Lahore","country":"Pakistan"}','30000000-0000-4000-8000-000000000001','cod','LAST')$$,'P0001',null,'exhausted promotion rejects entire order');
+select is((select stock_quantity from public.products where sku='AUDIT2'),20,'failed promo restores transaction stock');
+update public.orders set reservation_expires_at=now()-interval '1 minute';
+select is(public.release_expired_reservations(),1,'expired reservation released');
+select is((select stock_quantity from public.products where sku='AUDIT1'),20,'expired order restores inventory');
+select set_config('request.jwt.claims','{"sub":"user_audit_admin","role":"authenticated"}',true);
+set local role authenticated;
+select lives_ok($$select * from public.admin_top_categories(now()-interval '1 day',now()+interval '1 day',4)$$,'dashboard category aggregation has no ambiguous columns');
+select lives_ok($$select public.admin_save_product('{"name":"Updated audit rug","sku":"AUDIT1","slug":"audit-rug","price":100}', '[{"url":"https://example.test/rug.webp","alt":"Audit rug"}]','[{"id":"20000000-0000-4000-8000-000000000001","label":"5x8","price_delta":0,"stock_quantity":20,"is_active":true}]','10000000-0000-4000-8000-000000000001')$$,'admin product save succeeds atomically');
+select is((select count(*)::int from public.product_images),1,'product media persisted');
+select throws_ok($$select public.admin_save_product('{"name":"Stale update","sku":"AUDIT1","slug":"audit-rug","price":100}', '[]','[]','10000000-0000-4000-8000-000000000001','2000-01-01T00:00:00Z')$$,'P0001',null,'stale editor cannot overwrite newer inventory');
+select throws_ok($$select public.admin_save_product('{"name":"Bad update","sku":"AUDIT1","slug":"audit-rug","price":-1}', '[]','[]','10000000-0000-4000-8000-000000000001')$$,'P0001',null,'negative product price rejected');
+select is((select name from public.products where sku='AUDIT1'),'Updated audit rug','failed product save preserves metadata');
+select is((select count(*)::int from public.product_images),1,'failed product save preserves media');
+select throws_ok($$select public.admin_save_shipping('[{"id":"30000000-0000-4000-8000-000000000001","name":"First","amount":20,"is_active":true,"sort_order":0},{"name":"Invalid","amount":-1,"is_active":true,"sort_order":1}]')$$,'P0001',null,'invalid shipping row rejects batch');
+select is((select amount from public.shipping_methods limit 1),5.00::numeric,'failed shipping batch preserves earlier rows');
+select throws_ok($$update public.settings set value='{"currency":"PKR"}' where key='store'$$,'P0001',null,'base currency cannot corrupt existing financial units');
+reset role;
+select set_config('request.jwt.claims','{"sub":"user_audit_customer","role":"authenticated"}',true);
+set local role authenticated;
+select lives_ok($$select public.place_order('[{"product_id":"10000000-0000-4000-8000-000000000002","quantity":1}]','{"email":"buyer@example.test","first_name":"Buyer","last_name":"Test"}','{"address_line1":"123 Test St","city":"Lahore","country":"Pakistan"}','30000000-0000-4000-8000-000000000001','cod')$$,'authenticated checkout creates an owned order');
+select is((select count(*)::int from public.orders),1,'customer sees only owned order');
+reset role;
+select set_config('request.jwt.claims','{"sub":"user_audit_other","role":"authenticated"}',true);
+set local role authenticated;
+select is((select count(*)::int from public.orders),0,'another customer cannot read orders');
+select is((select count(*)::int from public.cart_items),0,'another customer cannot read cart');
+select throws_ok($$select public.release_expired_reservations()$$,'42501',null,'customers cannot invoke inventory release');
+reset role;
+
+
+reset role;
+select set_config('request.jwt.claims','{}',true);
+update public.product_variants set is_active=false where id='20000000-0000-4000-8000-000000000001';
+select throws_ok($$select public.place_order('[{"product_id":"10000000-0000-4000-8000-000000000001","quantity":1}]','{"email":"inactive@example.test","first_name":"Buyer","last_name":"Test"}','{"address_line1":"123 Test St","city":"Lahore","country":"Pakistan"}','30000000-0000-4000-8000-000000000001','cod')$$,'P0001','Please choose a size for this rug.','inactive sizes cannot be bypassed by omitting variant');
+select is(public.release_expired_reservations(),0,'reservation release is idempotent');
+
+select * from finish();
+rollback;

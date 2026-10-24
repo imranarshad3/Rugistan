@@ -1,5 +1,6 @@
+import LoadingScreen from './components/LoadingScreen'
 import { Suspense, lazy } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { StoreProvider } from './context/StoreContext'
 import { CartProvider } from './context/CartContext'
@@ -7,40 +8,34 @@ import { WishlistProvider } from './context/WishlistContext'
 import { ToastProvider } from './context/ToastContext'
 
 import ClientLayout from './components/client/ClientLayout'
-import Home from './pages/client/Home'
-import Shop from './pages/client/Shop'
-import Collections from './pages/client/Collections'
-import ProductDetail from './pages/client/ProductDetail'
-import OurStory from './pages/client/OurStory'
-import RugCare from './pages/client/RugCare'
-import Contact from './pages/client/Contact'
-import Cart from './pages/client/Cart'
-import Checkout from './pages/client/Checkout'
-import OrderConfirmation from './pages/client/OrderConfirmation'
-import TrackOrder from './pages/client/TrackOrder'
-import CmsPage from './pages/client/CmsPage'
-import NotFound from './pages/client/NotFound'
-import { ForgotPassword, Login, Register, ResetPassword } from './pages/client/Auth'
-import {
-  AccountDetails,
-  AccountLayout,
-  AccountOrderDetail,
-  AccountOrders,
-  AccountOverview,
-  AccountWishlist,
-  RequireAuth,
-} from './pages/client/Account'
+const Home = lazy(() => import('./pages/client/Home'))
+const Shop = lazy(() => import('./pages/client/Shop'))
+const Collections = lazy(() => import('./pages/client/Collections'))
+const ProductDetail = lazy(() => import('./pages/client/ProductDetail'))
+const OurStory = lazy(() => import('./pages/client/OurStory'))
+const RugCare = lazy(() => import('./pages/client/RugCare'))
+const Contact = lazy(() => import('./pages/client/Contact'))
+const Cart = lazy(() => import('./pages/client/Cart'))
+const Checkout = lazy(() => import('./pages/client/Checkout'))
+const OrderConfirmation = lazy(() => import('./pages/client/OrderConfirmation'))
+const TrackOrder = lazy(() => import('./pages/client/TrackOrder'))
+const CmsPage = lazy(() => import('./pages/client/CmsPage'))
+const NotFound = lazy(() => import('./pages/client/NotFound'))
+const ForgotPassword = lazy(() => import('./pages/client/Auth').then(m => ({ default: m.ForgotPassword })))
+const Login = lazy(() => import('./pages/client/Auth').then(m => ({ default: m.Login })))
+const Register = lazy(() => import('./pages/client/Auth').then(m => ({ default: m.Register })))
+const ResetPassword = lazy(() => import('./pages/client/Auth').then(m => ({ default: m.ResetPassword })))
+const AccountDetails = lazy(() => import('./pages/client/Account').then(m => ({ default: m.AccountDetails })))
+const AccountLayout = lazy(() => import('./pages/client/Account').then(m => ({ default: m.AccountLayout })))
+const AccountOrderDetail = lazy(() => import('./pages/client/Account').then(m => ({ default: m.AccountOrderDetail })))
+const AccountOrders = lazy(() => import('./pages/client/Account').then(m => ({ default: m.AccountOrders })))
+const AccountOverview = lazy(() => import('./pages/client/Account').then(m => ({ default: m.AccountOverview })))
+const AccountWishlist = lazy(() => import('./pages/client/Account').then(m => ({ default: m.AccountWishlist })))
+const RequireAuth = lazy(() => import('./pages/client/Account').then(m => ({ default: m.RequireAuth })))
 
 const AdminApp = lazy(() => import('./admin/AdminApp'))
 
-function Booting() {
-  return (
-    <div className="rg-boot">
-      <div className="mark">Rugistan</div>
-      <div className="bar" />
-    </div>
-  )
-}
+function Booting() { const { pathname } = useLocation(); return <LoadingScreen studio={pathname.startsWith('/admin')} /> }
 
 export default function App() {
   return (
@@ -49,7 +44,7 @@ export default function App() {
         <StoreProvider>
           <WishlistProvider>
             <CartProvider>
-              <Routes>
+              <Suspense fallback={<Booting />}><Routes>
                 <Route path="/" element={<ClientLayout />}>
                   <Route index element={<Home />} />
                   <Route path="shop" element={<Shop />} />
@@ -93,7 +88,7 @@ export default function App() {
                     </Suspense>
                   }
                 />
-              </Routes>
+              </Routes></Suspense>
             </CartProvider>
           </WishlistProvider>
         </StoreProvider>

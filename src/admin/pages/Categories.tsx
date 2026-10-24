@@ -15,6 +15,7 @@ export default function Categories() {
   const toast = useToast()
   const { reload: reloadStore } = useStore()
   const [rows, setRows] = useState<Row[]>([])
+  const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Row | 'new' | null>(null)
@@ -26,10 +27,12 @@ export default function Categories() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: cats }, { data: products }] = await Promise.all([
+    const [{ data: cats, error: readError }, { data: products, error: productError }] = await Promise.all([
       supabase.from('categories').select('*').order('sort_order'),
       supabase.from('products').select('category_id'),
     ])
+    if (readError || productError) { setLoadError('The latest records could not be loaded. Please try again.'); setLoading(false); return }
+    setLoadError('')
     const counts = new Map<string, number>()
     for (const p of products ?? []) if (p.category_id) counts.set(p.category_id, (counts.get(p.category_id) ?? 0) + 1)
     setRows((cats ?? []).map((c) => ({ ...c, product_count: counts.get(c.id) ?? 0 })))
@@ -106,6 +109,7 @@ export default function Categories() {
 
   return (
     <>
+      {loadError && <div className="notice error" role="alert">{loadError} <button type="button" className="action" onClick={() => void load()}>Try again</button></div>}
       <PageHeader
         title="Categories"
         subtitle="Organize your rugs into beautifully curated collections."

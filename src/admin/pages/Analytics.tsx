@@ -54,6 +54,8 @@ export default function Analytics() {
     }
   }, [range])
 
+  if (error) return <><PageHeader title="Store insights" subtitle="Data is temporarily unavailable" /><Notice tone="error">{error}</Notice><button type="button" className="btn soft" onClick={() => window.location.reload()}>Try again</button></>
+
   const bucket = rangeBounds(range).bucket
   const statusEntries = Object.entries(stats?.by_status ?? {})
   const statusTotal = statusEntries.reduce((sum, [, n]) => sum + Number(n), 0)

@@ -1057,3 +1057,54 @@
 .rg-client .pd-video-thumb small{font-size:.6875rem;font-family:var(--sans,Arial,sans-serif)}
 .rg-client .pd-layout .thumbrow{flex-wrap:wrap}
 .rg-client video.pd-primary{background:#efe5d6;object-fit:contain}
+
+/* Editorial storefront introductions. */
+.rg-client .banner.banner-editorial{min-height:clamp(30rem,43vw,40rem);padding-bottom:0;background:#eee7dc;isolation:isolate}
+.rg-client .banner.banner-editorial>img{inset:0;width:100%;height:100%;object-fit:cover;object-position:center 60%;background:transparent}
+.rg-client .banner.banner-editorial .shade{background:linear-gradient(90deg,#f7f1e7 0%,#f7f1e7f5 28%,#f7f1e7bf 43%,#f7f1e729 65%,transparent 80%)}
+.rg-client .banner.banner-editorial .inner{width:56%;padding:4rem var(--page-gutter)}
+.rg-client .banner.banner-editorial .inner>.eyebrow{display:block;font-size:.625rem;letter-spacing:.2em;margin-bottom:1.25rem;color:#936536}
+.rg-client .banner.banner-editorial .banner-crumb{margin-bottom:2rem}
+.rg-client .banner.banner-editorial p{max-width:26rem;color:#675849}
+.rg-client .cover.hero>img{object-fit:cover;object-position:center}
+@media(max-width:700px){
+ .rg-client .banner.banner-editorial{min-height:38rem;display:flex;align-items:flex-start}
+ .rg-client .banner.banner-editorial>img{inset:auto 0 0;height:56%;object-fit:cover;object-position:center 65%}
+ .rg-client .banner.banner-editorial .shade{background:linear-gradient(180deg,#f7f1e7 0%,#f7f1e7 42%,#f7f1e7e6 51%,#f7f1e700 70%)}
+ .rg-client .banner.banner-editorial .inner{width:100%;padding:2rem 1.25rem 17rem}
+ .rg-client .banner.banner-editorial .banner-crumb{margin-bottom:1.5rem}
+ .rg-client .banner.banner-editorial h1{font-size:clamp(2.625rem,11vw,3.5rem)}
+ .rg-client .banner.banner-editorial p{max-width:24rem}
+}
+
+/* Shop: a quiet editorial cover with a dedicated reading surface. */
+.rg-client .banner.banner-editorial.shop-hero{min-height:35rem;background:#eee7dc;display:flex;align-items:center}
+.rg-client .banner.banner-editorial.shop-hero>img{left:39%;width:61%;object-position:center 62%}
+.rg-client .banner.banner-editorial.shop-hero .shade{background:linear-gradient(90deg,#f5efe5 0%,#f5efe5 37%,#f5efe5e6 42%,#f5efe500 59%)}
+.rg-client .banner.banner-editorial.shop-hero .inner{width:48%;padding:3rem var(--page-gutter);position:relative}
+.rg-client .shop-hero .banner-crumb{font-size:.6875rem;margin-bottom:2.75rem}
+.rg-client .banner.banner-editorial.shop-hero .eyebrow{letter-spacing:.23em;font-size:.625rem;margin-bottom:1.15rem}
+.rg-client .banner.banner-editorial.shop-hero h1{font-size:clamp(3.25rem,5.1vw,5rem);max-width:26rem;line-height:1.06;letter-spacing:-.045em}
+.rg-client .shop-hero-rule{display:block;width:3rem;height:1px;background:#ab7c4a;margin-top:1.6rem}
+.rg-client .banner.banner-editorial.shop-hero p{font-size:.9375rem;line-height:1.85;max-width:23rem;margin:1.25rem 0 1.8rem}
+.rg-client .shop-hero-cta{gap:1.75rem;min-height:3.1rem}
+.rg-client .shop-hero-note{display:flex;align-items:center;gap:.6rem;margin-top:1.8rem;font-size:.6875rem;color:#806950;letter-spacing:.02em}
+.rg-client .shop-hero-note svg{color:#a27646;flex-shrink:0}
+.rg-client .shop-hero-caption{position:absolute;right:2rem;bottom:1.6rem;padding:.8rem 1rem;border:1px solid #fff8e94d;background:#34271b80;backdrop-filter:blur(12px);color:#fff7eb;font-size:.5625rem;letter-spacing:.18em;display:flex;gap:1.5rem;z-index:1}
+.rg-client .shop-hero-caption>span{opacity:.75}
+.rg-client #rug-catalogue{scroll-margin-top:7rem}
+@media(max-width:900px) and (min-width:701px){
+ .rg-client .banner.banner-editorial.shop-hero .inner{width:57%}
+ .rg-client .banner.banner-editorial.shop-hero .shade{background:linear-gradient(90deg,#f5efe5 0%,#f5efe5f0 40%,#f5efe500 76%)}
+}
+@media(max-width:700px){
+ .rg-client .banner.banner-editorial.shop-hero{min-height:0;display:block;padding-bottom:16rem}
+ .rg-client .banner.banner-editorial.shop-hero>img{left:0;bottom:0;top:auto;width:100%;height:18rem;object-position:center 68%}
+ .rg-client .banner.banner-editorial.shop-hero .shade{background:linear-gradient(180deg,#f5efe5 0%,#f5efe5 52%,#f5efe5 60%,#f5efe500 76%)}
+ .rg-client .banner.banner-editorial.shop-hero .inner{width:100%;padding:1.75rem 1.5rem 2rem}
+ .rg-client .shop-hero .banner-crumb{margin-bottom:2rem}
+ .rg-client .banner.banner-editorial.shop-hero h1{font-size:clamp(2.875rem,12vw,4rem)}
+ .rg-client .shop-hero-caption{right:1rem;bottom:1rem;font-size:.5rem;padding:.65rem .75rem}
+ .rg-client .shop-hero-caption>span{display:none}
+ .rg-client .shop-hero-note{margin-top:1.5rem}
+}

@@ -1,3 +1,4 @@
+import { sanitizeHtml } from '../../lib/html'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchBanners, fetchPage } from '../../lib/api'
@@ -21,7 +22,7 @@ export default function OurStory() {
   const [banners, setBanners] = useState<Record<string, Banner>>({})
 
   useEffect(() => {
-    void fetchPage('our-story').then(setPage)
+    void fetchPage('our-story').then(setPage).catch(() => setPage(null))
     void fetchBanners().then(setBanners)
   }, [])
 
@@ -42,7 +43,7 @@ export default function OurStory() {
         <div className="storycopy">
           <div className="eyebrow">OUR STORY</div>
           {page?.content ? (
-            <div className="cms" dangerouslySetInnerHTML={{ __html: page.content }} />
+            <div className="cms" dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.content) }} />
           ) : (
             <>
               <h2>Rooted in Heritage, Made for Modern Homes</h2>

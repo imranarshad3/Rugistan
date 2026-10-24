@@ -213,10 +213,10 @@ export function AccountOrders() {
 const STAGES = ['Order Placed', 'Processing', 'Shipped', 'Delivered']
 
 export function AccountOrderDetail() {
-  const money = useMoney()
   const { orderNumber = '' } = useParams()
   const { user } = useAuth()
   const [order, setOrder] = useState<OrderFull | null>(null)
+  const money = useMoney(undefined, order?.currency)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -360,7 +360,7 @@ export function AccountWishlist() {
       if (!active) return
       setProducts(list)
       setLoading(false)
-    })
+    }).catch(() => { if (active) setLoading(false) })
     return () => {
       active = false
     }

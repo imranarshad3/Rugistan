@@ -1,3 +1,4 @@
+import ContentNavigation from '../components/ContentNavigation'
 import Select from '../../components/ui/Select'
 import { Plus, ArrowUp, ArrowDown } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
@@ -28,6 +29,7 @@ const BLANK = {
 export default function Banners() {
   const toast = useToast()
   const [rows, setRows] = useState<Banner[]>([])
+  const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Banner | 'new' | null>(null)
   const [form, setForm] = useState({ ...BLANK })
@@ -38,7 +40,9 @@ export default function Banners() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('banners').select('*').order('sort_order')
+    const { data, error: readError } = await supabase.from('banners').select('*').order('sort_order')
+    if (readError) { setLoadError('The latest records could not be loaded. Please try again.'); setLoading(false); return }
+    setLoadError('')
     setRows(data ?? [])
     setLoading(false)
   }, [])
@@ -139,6 +143,8 @@ export default function Banners() {
 
   return (
     <>
+      <ContentNavigation />
+      {loadError && <div className="notice error" role="alert">{loadError} <button type="button" className="action" onClick={() => void load()}>Try again</button></div>}
       <PageHeader
         title="Homepage Banners"
         subtitle="Manage your storefront’s visual stories and promotional imagery."
@@ -164,7 +170,7 @@ export default function Banners() {
             <div className="bannerrow" key={b.id}>
               <img src={b.image_url ?? '/assets/rug_lifestyle_1.jpg'} alt="" aria-hidden="true" />
               <div>
-                <strong style={{ font: '20px Georgia, serif' }}>{b.title}</strong>
+                <strong style={{ font: '1.25rem Georgia, serif' }}>{b.title}</strong>
                 <p className="sub">{PLACEMENTS.find((p) => p.id === b.placement)?.label ?? b.placement}</p>
                 {b.subtitle && <p className="tiny">{b.subtitle}</p>}
               </div>

@@ -17,6 +17,7 @@ export default function Products() {
   const toast = useToast()
   const [products, setProducts] = useState<ProductFull[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
   const [viewCounts, setViewCounts] = useState<Record<string, number> | null>(null)
   const [statusBusy, setStatusBusy] = useState<string | null>(null)
@@ -29,10 +30,12 @@ export default function Products() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data }, { data: cats }] = await Promise.all([
+    const [{ data, error: readError }, { data: cats, error: categoryError }] = await Promise.all([
       supabase.from('products').select(SELECT).order('created_at', { ascending: false }),
       supabase.from('categories').select('*').order('sort_order'),
     ])
+    if (readError || categoryError) { setLoadError('The latest records could not be loaded. Please try again.'); setLoading(false); return }
+    setLoadError('')
     setProducts((data ?? []) as never)
     setCategories(cats ?? [])
     const { data: views, error: viewsError } = await supabase.rpc('admin_product_views')
@@ -90,6 +93,7 @@ export default function Products() {
 
   return (
     <>
+      {loadError && <div className="notice error" role="alert">{loadError} <button type="button" className="action" onClick={() => void load()}>Try again</button></div>}
       <PageHeader
         title="Products"
         subtitle="Manage your handmade rug catalogue, prices and availability."

@@ -1,3 +1,4 @@
+import LoadingScreen from '../components/LoadingScreen'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import AdminLayout from './AdminLayout'
@@ -20,14 +21,7 @@ import Profile from './pages/Profile'
 function Gate({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, loading } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="rg-boot">
-        <div className="mark">Rugistan</div>
-        <div className="bar" />
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen studio />
   if (!user) return <Navigate to="/admin/login" replace />
   if (!isAdmin) return <AdminLogin />
   return <>{children}</>

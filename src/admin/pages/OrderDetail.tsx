@@ -14,10 +14,10 @@ const PAYMENTS: PaymentStatus[] = ['unpaid', 'awaiting_confirmation', 'paid', 'r
 const STAGES = ['Order Placed', 'Processing', 'Shipped', 'Delivered']
 
 export default function OrderDetail() {
-  const money = useMoney('PKR')
   const { id = '' } = useParams()
   const toast = useToast()
   const [order, setOrder] = useState<OrderFull | null>(null)
+  const money = useMoney('PKR', order?.currency)
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState<OrderStatus>('pending')
   const [note, setNote] = useState('')
@@ -156,7 +156,7 @@ export default function OrderDetail() {
             ))}
             <div className="hstack space" style={{ paddingTop: 25, fontSize: '1.125rem' }}>
               <strong>Total</strong>
-              <strong style={{ font: '28px Georgia, serif' }}>{money(order.total)}</strong>
+              <strong style={{ font: '1.75rem Georgia, serif' }}>{money(order.total)}</strong>
             </div>
           </div>
 

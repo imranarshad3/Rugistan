@@ -1,97 +1,160 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { supabase } from '../lib/supabase'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { supabase, readableError } from '../lib/supabase'
 import { useAuth } from './AuthContext'
-
-const STORAGE_KEY = 'rugistan.wishlist.v1'
-
+import { useToast } from './ToastContext'
+const KEY = 'rugistan.wishlist.v1'
+const validId = (id: unknown): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)
 function readLocal(): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    const parsed = raw ? (JSON.parse(raw) as string[]) : []
-    return Array.isArray(parsed) ? parsed : []
+    const value: unknown = JSON.parse(localStorage.getItem(KEY) || '[]')
+    return Array.isArray(value) ? [...new Set(value.filter(validId))].slice(0, 100) : []
   } catch {
     return []
   }
 }
-
 function writeLocal(ids: string[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids))
+    localStorage.setItem(KEY, JSON.stringify(ids))
   } catch {
-    /* ignore unavailable storage */
+    /* Optional persistence. */
   }
 }
-
 type WishlistApi = {
   ids: string[]
   count: number
-  has: (productId: string) => boolean
-  toggle: (productId: string) => Promise<boolean>
-  remove: (productId: string) => Promise<void>
+  has: (id: string) => boolean
+  toggle: (id: string) => Promise<boolean>
+  remove: (id: string) => Promise<void>
 }
-
 const Ctx = createContext<WishlistApi | null>(null)
-
 export function WishlistProvider({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
-  const [ids, setIds] = useState<string[]>(() => readLocal())
-
+  const toast = useToast()
+  const userId = user?.id ?? null
+  const [ids, setIds] = useState<string[]>(readLocal)
+  const [owner, setOwner] = useState<string | null>(null)
+  const current = useRef(ids)
+  const identity = useRef(userId)
+  useLayoutEffect(() => {
+    identity.current = userId
+  }, [userId])
+  const queue = useRef<Promise<unknown>>(Promise.resolve())
+  const commit = useCallback((next: string[], id: string | null) => {
+    current.current = next
+    setIds(next)
+    setOwner(id)
+  }, [])
   useEffect(() => {
     if (loading) return
     let active = true
-
-    ;(async () => {
-      if (!user) {
-        if (active) setIds(readLocal())
-        return
-      }
-      const local = readLocal()
-      if (local.length) {
-        await supabase
+    const task = queue.current
+      .catch(() => {})
+      .then(async () => {
+        if (!active) return
+        const local = readLocal()
+        if (!userId) {
+          commit(local, null)
+          return
+        }
+        if (local.length) {
+          // A removed/unpublished guest item must not prevent the rest from merging.
+          const { data: available, error: lookupError } = await supabase
+            .from('products')
+            .select('id')
+            .in('id', local)
+            .eq('status', 'published')
+          if (lookupError) throw lookupError
+          if (available.length) {
+            const { error } = await supabase.from('wishlist_items').upsert(
+              available.map((p) => ({ user_id: userId, product_id: p.id })),
+              { onConflict: 'user_id,product_id' },
+            )
+            if (error) throw error
+          }
+        }
+        const { data, error } = await supabase
           .from('wishlist_items')
-          .upsert(local.map((id) => ({ user_id: user.id, product_id: id })), { onConflict: 'user_id,product_id' })
-        writeLocal([])
-      }
-      const { data } = await supabase.from('wishlist_items').select('product_id').eq('user_id', user.id)
-      if (active) setIds((data ?? []).map((r) => r.product_id))
-    })()
-
+          .select('product_id')
+          .eq('user_id', userId)
+        if (error) throw error
+        if (active && identity.current === userId) {
+          commit(
+            data.map((r) => r.product_id),
+            userId,
+          )
+          writeLocal([])
+        }
+      })
+      .catch((error) => {
+        if (active) toast.error(readableError(error, 'Your wishlist could not be loaded.'))
+      })
+    queue.current = task
     return () => {
       active = false
     }
-  }, [user, loading])
-
-  const toggle = useCallback<WishlistApi['toggle']>(
-    async (productId) => {
-      const on = !ids.includes(productId)
-      const next = on ? [...ids, productId] : ids.filter((id) => id !== productId)
-      setIds(next)
-      if (user) {
-        if (on) await supabase.from('wishlist_items').insert({ user_id: user.id, product_id: productId })
-        else await supabase.from('wishlist_items').delete().eq('user_id', user.id).eq('product_id', productId)
-      } else {
-        writeLocal(next)
-      }
-      return on
+  }, [userId, loading, commit, toast])
+  const mutate = useCallback(
+    (id: string, removeOnly = false): Promise<boolean> => {
+      const task = queue.current
+        .catch(() => {})
+        .then(async () => {
+          if (!validId(id) || identity.current !== userId || loading) return false
+          const on = !current.current.includes(id)
+          if (removeOnly && on) return false
+          if (userId) {
+            const { error } = on
+              ? await supabase
+                  .from('wishlist_items')
+                  .upsert({ user_id: userId, product_id: id }, { onConflict: 'user_id,product_id' })
+              : await supabase.from('wishlist_items').delete().eq('user_id', userId).eq('product_id', id)
+            if (error) throw error
+          }
+          const next = on ? [...current.current, id] : current.current.filter((x) => x !== id)
+          if (identity.current === userId) {
+            commit(next, userId)
+            if (!userId) writeLocal(next)
+          }
+          return on
+        })
+        .catch((error) => {
+          toast.error(readableError(error))
+          return current.current.includes(id)
+        })
+      queue.current = task
+      return task
     },
-    [ids, user],
+    [userId, loading, commit, toast],
   )
-
-  const remove = useCallback<WishlistApi['remove']>(
-    async (productId) => {
-      if (ids.includes(productId)) await toggle(productId)
+  const toggle = useCallback((id: string) => mutate(id), [mutate])
+  const remove = useCallback(
+    async (id: string) => {
+      await mutate(id, true)
     },
-    [ids, toggle],
+    [mutate],
   )
-
-  const value = useMemo<WishlistApi>(
-    () => ({ ids, count: ids.length, has: (id) => ids.includes(id), toggle, remove }),
-    [ids, toggle, remove],
+  const visible = useMemo(() => (owner === userId ? ids : []), [owner, userId, ids])
+  const value = useMemo(
+    () => ({
+      ids: visible,
+      count: visible.length,
+      has: (id: string) => visible.includes(id),
+      toggle,
+      remove,
+    }),
+    [visible, toggle, remove],
   )
-
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
-
 export function useWishlist() {
   const ctx = useContext(Ctx)
   if (!ctx) throw new Error('useWishlist must be used inside WishlistProvider')

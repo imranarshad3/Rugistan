@@ -220,21 +220,21 @@ function ShippingTab() {
   }, [load])
 
   async function save() {
-    setSaving(true)
-    for (const [index, row] of rows.entries()) {
-      const payload = {
-        name: row.name.trim(),
-        description: row.description.trim(),
-        amount: Number(row.amount) || 0,
-        is_active: row.is_active,
-        sort_order: index,
-      }
-      if (row.id.startsWith('new-')) await supabase.from('shipping_methods').insert(payload)
-      else await supabase.from('shipping_methods').update(payload).eq('id', row.id)
+    if (saving) return
+    if (rows.some(row => !row.name.trim() || !Number.isFinite(Number(row.amount)) || Number(row.amount) < 0)) {
+      toast.error('Every delivery method needs a name and a non-negative charge.')
+      return
     }
-    setSaving(false)
-    toast.success('Delivery methods saved.')
-    await load()
+    setSaving(true)
+    try {
+      const { error } = await supabase.rpc('admin_save_shipping', {
+        p_rows: rows.map((row,index) => ({ ...row, id: row.id.startsWith('new-') ? null : row.id, name: row.name.trim(), amount: Number(row.amount), sort_order: index })),
+      })
+      if (error) throw error
+      toast.success('Delivery methods saved.')
+      await load()
+    } catch (error) { toast.error(readableError(error)) }
+    finally { setSaving(false) }
   }
 
   async function remove(row: ShippingMethod) {
@@ -248,7 +248,7 @@ function ShippingTab() {
       return
     }
     toast.success('Delivery method removed.')
-    await load()
+    setRows(list => list.filter(r => r.id !== row.id))
   }
 
   if (loading) return <div className="skeleton" style={{ height: 200 }} />
@@ -438,13 +438,15 @@ function PromotionsTab() {
   }
 
   async function toggle(row: PromoCode) {
-    await supabase.from('promo_codes').update({ is_active: !row.is_active }).eq('id', row.id)
+    const { error } = await supabase.from('promo_codes').update({ is_active: !row.is_active }).eq('id', row.id)
+    if (error) { toast.error(readableError(error)); return }
     await load()
   }
 
   async function remove() {
     if (!pendingDelete) return
-    await supabase.from('promo_codes').delete().eq('id', pendingDelete.id)
+    const { error } = await supabase.from('promo_codes').delete().eq('id', pendingDelete.id)
+    if (error) { toast.error(readableError(error)); return }
     setPendingDelete(null)
     toast.success('Promo code deleted.')
     await load()
@@ -550,7 +552,8 @@ function MessagesTab() {
   }, [load])
 
   async function markRead(id: string, isRead: boolean) {
-    await supabase.from('contact_messages').update({ is_read: isRead }).eq('id', id)
+    const { error } = await supabase.from('contact_messages').update({ is_read: isRead }).eq('id', id)
+    if (error) { toast.error(readableError(error)); return }
     await load()
     toast.success(isRead ? 'Marked as read.' : 'Marked as unread.')
   }

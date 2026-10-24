@@ -1,268 +1,286 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { supabase } from '../lib/supabase'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { supabase, readableError } from '../lib/supabase'
 import { useAuth } from './AuthContext'
+import { useToast } from './ToastContext'
+import { normaliseCart, sameLine } from '../lib/cart'
 import type { CartLine, CartLineView, ProductFull } from '../lib/types'
 
 const STORAGE_KEY = 'rugistan.cart.v1'
-
-function readGuestCart(): CartLine[] {
+function readGuest(): CartLine[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as CartLine[]
-    return Array.isArray(parsed) ? parsed.filter((l) => l?.productId && l.quantity > 0) : []
+    return normaliseCart(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'))
   } catch {
     return []
   }
 }
-
-function writeGuestCart(lines: CartLine[]) {
+function writeGuest(lines: CartLine[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(lines))
   } catch {
-    /* storage can be unavailable in private windows — the cart still works for this session */
+    /* Optional browser persistence. */
   }
 }
-
-const sameLine = (a: CartLine, b: CartLine) =>
-  a.productId === b.productId && (a.variantId ?? null) === (b.variantId ?? null)
-
 type CartApi = {
   lines: CartLineView[]
   rawLines: CartLine[]
   count: number
   subtotal: number
   loading: boolean
-  /** Returns an error message, or null when the rug was added. */
+  error: string | null
   add: (productId: string, variantId: string | null, quantity?: number) => Promise<string | null>
   setQuantity: (line: CartLine, quantity: number) => Promise<void>
   remove: (line: CartLine) => Promise<void>
   clear: () => Promise<void>
   reload: () => Promise<void>
 }
-
 const Ctx = createContext<CartApi | null>(null)
-
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth()
-  const [lines, setLines] = useState<CartLine[]>(() => readGuestCart())
+  const toast = useToast()
+  const userId = user?.id ?? null
+  const [lines, setLines] = useState<CartLine[]>(readGuest)
+  const [owner, setOwner] = useState<string | null>(null)
   const [views, setViews] = useState<CartLineView[]>([])
   const [loading, setLoading] = useState(true)
-  const mergedFor = useRef<string | null>(null)
-
-  /* ---------- persistence ---------- */
-  const loadFromDb = useCallback(async (userId: string) => {
-    const { data } = await supabase
-      .from('cart_items')
-      .select('product_id,variant_id,quantity')
-      .eq('user_id', userId)
-    return (data ?? []).map((r) => ({
-      productId: r.product_id,
-      variantId: r.variant_id,
-      quantity: r.quantity,
-    }))
+  const [error, setError] = useState<string | null>(null)
+  const current = useRef(lines)
+  const loadedFor = useRef<string | null>(null)
+  const identity = useRef(userId)
+  useLayoutEffect(() => {
+    identity.current = userId
+  }, [userId])
+  const queue = useRef<Promise<unknown>>(Promise.resolve())
+  const commit = useCallback((next: CartLine[]) => {
+    current.current = next
+    setLines(next)
+    setOwner(identity.current)
+    loadedFor.current = identity.current
   }, [])
-
-  const persist = useCallback(
-    async (next: CartLine[]) => {
-      setLines(next)
-      if (!user) {
-        writeGuestCart(next)
-        return
+  const sync = useCallback(
+    async (next: CartLine[], merge = false): Promise<CartLine[]> => {
+      if (!userId) {
+        writeGuest(next)
+        return next
       }
-      await supabase.from('cart_items').delete().eq('user_id', user.id)
-      if (next.length) {
-        await supabase.from('cart_items').insert(
-          next.map((l) => ({
-            user_id: user.id,
-            product_id: l.productId,
-            variant_id: l.variantId,
-            quantity: l.quantity,
-          })),
-        )
-      }
+      const { data, error: failure } = await supabase.rpc('sync_cart', {
+        p_lines: next.map((l) => ({
+          product_id: l.productId,
+          variant_id: l.variantId,
+          quantity: l.quantity,
+        })),
+        p_merge: merge,
+      })
+      if (failure) throw failure
+      return normaliseCart(
+        (data as { product_id: string; variant_id: string | null; quantity: number }[]).map((l) => ({
+          productId: l.product_id,
+          variantId: l.variant_id,
+          quantity: l.quantity,
+        })),
+      )
     },
-    [user],
+    [userId],
   )
 
-  /* merge the guest cart into the account cart on sign-in */
   useEffect(() => {
     if (authLoading) return
     let active = true
-
-    ;(async () => {
-      if (!user) {
-        mergedFor.current = null
-        if (active) setLines(readGuestCart())
-        return
-      }
-      if (mergedFor.current === user.id) return
-      mergedFor.current = user.id
-
-      const guest = readGuestCart()
-      const stored = await loadFromDb(user.id)
-      const merged = [...stored]
-      for (const g of guest) {
-        const hit = merged.find((m) => sameLine(m, g))
-        if (hit) hit.quantity += g.quantity
-        else merged.push(g)
-      }
-      writeGuestCart([])
-      if (!active) return
-      setLines(merged)
-      if (guest.length) {
-        await supabase.from('cart_items').delete().eq('user_id', user.id)
-        if (merged.length) {
-          await supabase.from('cart_items').insert(
-            merged.map((l) => ({
-              user_id: user.id,
-              product_id: l.productId,
-              variant_id: l.variantId,
-              quantity: l.quantity,
-            })),
-          )
+    setLoading(true)
+    setViews([])
+    const task = queue.current
+      .catch(() => {})
+      .then(async () => {
+        if (!active) return
+        const guest = readGuest()
+        // Merge is idempotent: StrictMode/remounts cannot double guest quantities.
+        const next = userId ? await sync(guest, true) : guest
+        if (!active || identity.current !== userId) return
+        commit(next)
+        if (userId) writeGuest([]) // clear only after a successful server transaction
+        setError(null)
+      })
+      .catch((failure) => {
+        if (active) {
+          setError(readableError(failure, 'Your cart could not be loaded.'))
+          setLoading(false)
         }
-      }
-    })()
-
+      })
+    queue.current = task
     return () => {
       active = false
     }
-  }, [user, authLoading, loadFromDb])
-
-  /* ---------- resolve lines against live catalogue data ---------- */
-  const resolve = useCallback(async (current: CartLine[]) => {
-    if (!current.length) {
-      setViews([])
-      setLoading(false)
-      return
-    }
-    const ids = [...new Set(current.map((l) => l.productId))]
-    const { data } = await supabase
-      .from('products')
-      .select('*, category:categories(id,name,slug), images:product_images(*), variants:product_variants(*)')
-      .in('id', ids)
-      .eq('status', 'published')
-
-    const products = (data ?? []) as unknown as ProductFull[]
-    const next: CartLineView[] = []
-
-    for (const line of current) {
-      const product = products.find((p) => p.id === line.productId)
-      if (!product) continue
-      const variant = line.variantId ? product.variants.find((v) => v.id === line.variantId) ?? null : null
-      if (line.variantId && !variant) continue
-      const unitPrice = Number(product.price) + Number(variant?.price_delta ?? 0)
-      const available = variant ? variant.stock_quantity : product.stock_quantity
-      const quantity = Math.max(Math.min(line.quantity, available), 0)
-      if (quantity === 0) continue
-      next.push({
-        ...line,
-        quantity,
-        product: {
-          ...product,
-          images: [...product.images].sort((a, b) => a.sort_order - b.sort_order),
-          variants: [...product.variants].sort((a, b) => a.sort_order - b.sort_order),
-        },
-        variant,
-        unitPrice,
-        lineTotal: unitPrice * quantity,
-        available,
-      })
-    }
-
-    setViews(next)
-    setLoading(false)
-  }, [])
+  }, [userId, authLoading, sync, commit])
 
   useEffect(() => {
+    if (authLoading || owner !== userId) return
+    let active = true
     setLoading(true)
-    void resolve(lines)
-  }, [lines, resolve])
-
-  /* ---------- mutations ---------- */
-  const add = useCallback<CartApi['add']>(
-    async (productId, variantId, quantity = 1) => {
-      const { data: product } = await supabase
-        .from('products')
-        .select('stock_quantity,status,name')
-        .eq('id', productId)
-        .maybeSingle()
-      if (!product || product.status !== 'published') return 'This rug is no longer available.'
-
-      let available = product.stock_quantity
-      if (variantId) {
-        const { data: variant } = await supabase
-          .from('product_variants')
-          .select('stock_quantity,is_active')
-          .eq('id', variantId)
-          .maybeSingle()
-        if (!variant || !variant.is_active) return 'That size is no longer available.'
-        available = variant.stock_quantity
+    void (async () => {
+      if (!lines.length) {
+        if (active) {
+          setViews([])
+          setLoading(false)
+        }
+        return
       }
-      if (available <= 0) return 'That size is out of stock.'
+      const { data, error: failure } = await supabase
+        .from('products')
+        .select(
+          '*, category:categories(id,name,slug), images:product_images(*), variants:product_variants(*)',
+        )
+        .in('id', [...new Set(lines.map((l) => l.productId))])
+        .eq('status', 'published')
+      if (failure) throw failure
+      const products = data as unknown as ProductFull[]
+      const next: CartLineView[] = []
+      for (const line of lines) {
+        const product = products.find((p) => p.id === line.productId)
+        if (!product) continue
+        const variant = line.variantId
+          ? (product.variants.find((v) => v.id === line.variantId && v.is_active) ?? null)
+          : null
+        if (line.variantId && !variant) continue
+        if (!variant && product.variants.length > 0) continue
+        const available = Math.min(10, variant?.stock_quantity ?? product.stock_quantity)
+        const quantity = Math.min(line.quantity, available)
+        if (quantity < 1) continue
+        const unitPrice = Number(product.price) + Number(variant?.price_delta ?? 0)
+        next.push({
+          ...line,
+          quantity,
+          product: { ...product, images: [...product.images].sort((a, b) => a.sort_order - b.sort_order) },
+          variant,
+          available,
+          unitPrice,
+          lineTotal: quantity * unitPrice,
+        })
+      }
+      if (active) {
+        setViews(next)
+        setLoading(false)
+      }
+    })().catch((failure) => {
+      if (active) {
+        setError(readableError(failure))
+        setLoading(false)
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [lines, authLoading, owner, userId])
 
-      const target: CartLine = { productId, variantId: variantId ?? null, quantity }
-      const next = [...lines]
-      const hit = next.find((l) => sameLine(l, target))
-      const requested = (hit?.quantity ?? 0) + quantity
-      if (requested > available) return `Only ${available} left in stock.`
-
-      if (hit) hit.quantity = requested
-      else next.push(target)
-      await persist(next)
-      return null
+  const mutate = useCallback(
+    (update: (previous: CartLine[]) => Promise<CartLine[]> | CartLine[]): Promise<string | null> => {
+      const owner = userId
+      const task = queue.current
+        .catch(() => {})
+        .then(async () => {
+          if (identity.current !== owner || loadedFor.current !== owner)
+            throw new Error('Your account changed. Please try again.')
+          const next = normaliseCart(await update(current.current))
+          const stored = await sync(next)
+          if (identity.current === owner) {
+            commit(stored)
+            setError(null)
+          }
+          return null
+        })
+        .catch((failure) => {
+          const message = readableError(failure)
+          if (identity.current === owner) {
+            setError(message)
+            toast.error(message)
+          }
+          return message
+        })
+      queue.current = task
+      return task
     },
-    [lines, persist],
+    [userId, sync, commit, toast],
   )
-
+  const add = useCallback<CartApi['add']>(
+    (productId, variantId, quantity = 1) =>
+      mutate(async (previous) => {
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10)
+          throw new Error('Choose between 1 and 10 rugs.')
+        const { data: product, error: failure } = await supabase
+          .from('products')
+          .select('stock_quantity,status,variants:product_variants(id,stock_quantity,is_active)')
+          .eq('id', productId)
+          .maybeSingle()
+        if (failure) throw failure
+        if (!product || product.status !== 'published') throw new Error('This rug is no longer available.')
+        const variant = product.variants.find((v) => v.id === variantId && v.is_active)
+        if ((variantId && !variant) || (!variantId && product.variants.length > 0))
+          throw new Error('Please choose an available size.')
+        const target = { productId, variantId, quantity }
+        const requested = (previous.find((l) => sameLine(l, target))?.quantity ?? 0) + quantity
+        const available = Math.min(10, variant?.stock_quantity ?? product.stock_quantity)
+        if (requested > available) throw new Error(`Only ${available} can be added to your cart.`)
+        return [...previous.filter((l) => !sameLine(l, target)), { ...target, quantity: requested }]
+      }),
+    [mutate],
+  )
   const setQuantity = useCallback<CartApi['setQuantity']>(
     async (line, quantity) => {
-      const next = lines
-        .map((l) => (sameLine(l, line) ? { ...l, quantity } : l))
-        .filter((l) => l.quantity > 0)
-      await persist(next)
+      await mutate((previous) => {
+        if (!Number.isInteger(quantity) || quantity < 0 || quantity > 10)
+          throw new Error('Choose between 1 and 10 rugs.')
+        return previous.map((l) => (sameLine(l, line) ? { ...l, quantity } : l)).filter((l) => l.quantity > 0)
+      })
     },
-    [lines, persist],
+    [mutate],
   )
-
   const remove = useCallback<CartApi['remove']>(
     async (line) => {
-      await persist(lines.filter((l) => !sameLine(l, line)))
+      await mutate((previous) => previous.filter((l) => !sameLine(l, line)))
     },
-    [lines, persist],
+    [mutate],
   )
-
   const clear = useCallback(async () => {
-    setLines([])
-    writeGuestCart([])
-    if (user) await supabase.from('cart_items').delete().eq('user_id', user.id)
-  }, [user])
-
+    await mutate(() => [])
+  }, [mutate])
   const reload = useCallback(async () => {
-    if (user) setLines(await loadFromDb(user.id))
-    else setLines(readGuestCart())
-  }, [user, loadFromDb])
-
+    await mutate(async () => {
+      if (!userId) return readGuest()
+      const { data, error: failure } = await supabase
+        .from('cart_items')
+        .select('product_id,variant_id,quantity')
+        .eq('user_id', userId)
+      if (failure) throw failure
+      return data.map((l) => ({ productId: l.product_id, variantId: l.variant_id, quantity: l.quantity }))
+    })
+  }, [userId, mutate])
+  const visible = useMemo(() => (owner === userId ? views : []), [owner, userId, views])
   const value = useMemo<CartApi>(
     () => ({
-      lines: views,
-      rawLines: lines,
-      count: views.reduce((sum, l) => sum + l.quantity, 0),
-      subtotal: views.reduce((sum, l) => sum + l.lineTotal, 0),
-      loading,
+      lines: visible,
+      rawLines: owner === userId ? lines : [],
+      count: visible.reduce((n, l) => n + l.quantity, 0),
+      subtotal: visible.reduce((n, l) => n + l.lineTotal, 0),
+      loading: loading || authLoading,
+      error,
       add,
       setQuantity,
       remove,
       clear,
       reload,
     }),
-    [views, lines, loading, add, setQuantity, remove, clear, reload],
+    [visible, owner, userId, lines, loading, authLoading, error, add, setQuantity, remove, clear, reload],
   )
-
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
-
 export function useCart() {
   const ctx = useContext(Ctx)
   if (!ctx) throw new Error('useCart must be used inside CartProvider')

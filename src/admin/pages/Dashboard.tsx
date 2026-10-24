@@ -60,6 +60,8 @@ export default function Dashboard() {
     }
   }, [range])
 
+  if (error) return <><PageHeader title="Store insights" subtitle="Data is temporarily unavailable" /><Notice tone="error">{error}</Notice><button type="button" className="btn soft" onClick={() => window.location.reload()}>Try again</button></>
+
   const bucket = rangeBounds(range).bucket
 
   return (

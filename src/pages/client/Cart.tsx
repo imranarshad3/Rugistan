@@ -42,7 +42,7 @@ export default function Cart() {
   const [checking, setChecking] = useState(false)
 
   useEffect(() => {
-    void fetchProducts({ perPage: 4, sort: 'featured' }).then((r) => setSuggestions(r.products))
+    void fetchProducts({ perPage: 4, sort: 'featured' }).then((r) => setSuggestions(r.products)).catch(() => setSuggestions([]))
   }, [])
 
   // A promo stops being valid if the basket drops below its minimum.
@@ -79,6 +79,7 @@ export default function Cart() {
       <PageBanner title="Your Cart" description="Beautiful rugs. A more meaningful home." image="/assets/rug_lifestyle_1.jpg" />
 
       <section className="section wrap">
+        {cart.error && <div className="notice error" role="alert">{cart.error} <button className="linkbtn" type="button" onClick={() => void cart.reload()}>Try again</button></div>}
         {cart.loading ? (
           <div className="carttable">
             {Array.from({ length: 2 }, (_, i) => (

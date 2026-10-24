@@ -56,12 +56,11 @@ export default function ProductForm() {
   const [colors, setColors] = useState<ColorSwatch[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(!isNew)
+  const [loadedVersion, setLoadedVersion] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [banner, setBanner] = useState('')
-  const [removedVariantIds, setRemovedVariantIds] = useState<string[]>([])
-  const [removedImageIds, setRemovedImageIds] = useState<string[]>([])
 
   useEffect(() => {
     void supabase.from('categories').select('*').order('sort_order').then(({ data }) => setCategories(data ?? []))
@@ -120,6 +119,7 @@ export default function ProductForm() {
           .sort((a, b) => a.sort_order - b.sort_order)
           .map((i) => ({ id: i.id, url: i.url, alt: i.alt, sort_order: i.sort_order })),
       )
+      setLoadedVersion(p.updated_at)
       setColors((p.colors as unknown as ColorSwatch[]) ?? [])
       setLoading(false)
     })()
@@ -134,7 +134,7 @@ export default function ProductForm() {
   }
 
   const variantStockTotal = useMemo(
-    () => variants.reduce((sum, v) => sum + (Number(v.stock_quantity) || 0), 0),
+    () => variants.reduce((sum, v) => sum + (v.is_active ? Number(v.stock_quantity) || 0 : 0), 0),
     [variants],
   )
 
@@ -142,12 +142,14 @@ export default function ProductForm() {
     const next: Record<string, string> = {}
     if (!form.name.trim()) next.name = 'A product name is required.'
     if (!form.sku.trim()) next.sku = 'A SKU is required.'
-    if (form.price === '' || Number(form.price) < 0 || Number.isNaN(Number(form.price)))
+    if (form.price === '' || Number(form.price) < 0 || !Number.isFinite(Number(form.price)))
       next.price = 'Enter a price of 0 or more.'
     if (form.compare_at_price && Number(form.compare_at_price) < Number(form.price))
       next.compare_at_price = 'The compare-at price should be higher than the price.'
     if (Number(form.stock_quantity) < 0 || Number.isNaN(Number(form.stock_quantity)))
       next.stock_quantity = 'Enter a stock quantity of 0 or more.'
+    if (!Number.isInteger(Number(form.stock_quantity)) || Number(form.stock_quantity) < 0) next.stock_quantity = 'Stock must be a whole number.'
+    if (variants.some(v => !Number.isInteger(Number(v.stock_quantity)) || Number(v.stock_quantity) < 0 || !Number.isFinite(Number(v.price_delta)) || Number(form.price) + Number(v.price_delta) < 0)) next.variants = 'Check size prices and whole-number stock quantities.'
     const labels = variants.map((v) => v.label.trim().toLowerCase())
     if (labels.some((l) => !l)) next.variants = 'Every size needs a label.'
     else if (new Set(labels).size !== labels.length) next.variants = 'Size labels must be unique.'
@@ -158,6 +160,8 @@ export default function ProductForm() {
 
   async function save(e: FormEvent, publish?: boolean) {
     e.preventDefault()
+    if (saving || uploading) return
+    if (!isNew && !loadedVersion) { toast.error('Load the product before saving changes.'); return }
     setBanner('')
     if (!validate()) {
       toast.error('Please fix the highlighted fields.')
@@ -188,63 +192,18 @@ export default function ProductForm() {
       is_featured: form.is_featured,
     }
 
-    let productId = id
-    if (isNew) {
-      const { data, error } = await supabase.from('products').insert(payload).select('id').single()
-      if (error) {
-        setSaving(false)
-        setBanner(readableError(error, 'The product could not be saved. The SKU or URL may already exist.'))
-        return
-      }
-      productId = data.id
-    } else {
-      const { error } = await supabase.from('products').update(payload).eq('id', id!)
-      if (error) {
-        setSaving(false)
-        setBanner(readableError(error, 'The product could not be saved.'))
-        return
-      }
-    }
-
-    // ---- images ----
-    if (removedImageIds.length) await supabase.from('product_images').delete().in('id', removedImageIds)
-    for (const [index, image] of images.entries()) {
-      const imgRes = image.id
-        ? await supabase.from('product_images').update({ sort_order: index, alt: image.alt }).eq('id', image.id)
-        : await supabase
-            .from('product_images')
-            .insert({ product_id: productId!, url: image.url, alt: image.alt || payload.name, sort_order: index })
-      if (imgRes.error) {
-        setSaving(false)
-        setBanner(readableError(imgRes.error, 'A product photo/video could not be saved.'))
-        return
-      }
-    }
-
-    // ---- variants ----
-    if (removedVariantIds.length) await supabase.from('product_variants').delete().in('id', removedVariantIds)
-    for (const [index, variant] of variants.entries()) {
-      const row = {
-        product_id: productId!,
-        label: variant.label.trim(),
-        price_delta: Number(variant.price_delta) || 0,
-        stock_quantity: Number(variant.stock_quantity) || 0,
-        sort_order: index,
-        is_active: variant.is_active,
-      }
-      const varRes = variant.id
-        ? await supabase.from('product_variants').update(row).eq('id', variant.id)
-        : await supabase.from('product_variants').insert(row)
-      if (varRes.error) {
-        setSaving(false)
-        setBanner(readableError(varRes.error, 'A product size could not be saved.'))
-        return
-      }
-    }
-
+    const { error } = await supabase.rpc('admin_save_product', {
+      p_product: payload,
+      p_product_id: id,
+      p_expected_updated_at: loadedVersion ?? undefined,
+      p_images: images.map((image, index) => ({ ...image, sort_order: index })),
+      p_variants: variants.map((variant, index) => ({ ...variant, price_delta: Number(variant.price_delta), stock_quantity: Number(variant.stock_quantity), sort_order: index })),
+    })
     setSaving(false)
-    setRemovedImageIds([])
-    setRemovedVariantIds([])
+    if (error) {
+      setBanner(readableError(error, 'The product could not be saved. Your changes have not been applied.'))
+      return
+    }
     toast.success(isNew ? 'Product created.' : 'Product saved.')
     navigate('/admin/products')
   }
@@ -459,7 +418,6 @@ export default function ProductForm() {
                             type="button"
                             className="action danger"
                             onClick={() => {
-                              if (v.id) setRemovedVariantIds((ids) => [...ids, v.id!])
                               setVariants((list) => list.filter((_, j) => j !== i))
                             }}
                           >
@@ -479,8 +437,6 @@ export default function ProductForm() {
           <ProductMedia items={images} onBusy={setUploading}
             onAdd={url => setImages(list => [...list, { url, alt: form.name, sort_order: list.length }])}
             onRemove={index => {
-              const item = images[index]
-              if (item?.id) setRemovedImageIds(ids => [...ids, item.id!])
               setImages(list => list.filter((_, i) => i !== index))
             }}
             onMove={(index, direction) => setImages(list => {

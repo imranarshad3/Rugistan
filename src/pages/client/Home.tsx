@@ -21,6 +21,7 @@ export default function Home() {
   const { categories, store } = useStore()
   const [banners, setBanners] = useState<Record<string, Banner>>({})
   const [featured, setFeatured] = useState<ProductFull[]>([])
+  const [loadError, setLoadError] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function Home() {
       setBanners(bannerMap)
       setFeatured(result.products.length ? result.products : (await fetchProducts({ perPage: 4 })).products)
       setLoading(false)
-    })()
+    })().catch(() => { if (active) { setLoadError(true); setLoading(false) } })
     return () => {
       active = false
     }
@@ -47,8 +48,9 @@ export default function Home() {
 
   return (
     <>
+      {loadError && <div className="notice error" role="alert">We could not load the latest collection. Please refresh and try again.</div>}
       <div className="cover hero">
-        <img src={hero?.image_url || HERO_FALLBACK} alt="" aria-hidden="true" />
+        <img src={HERO_FALLBACK} alt="" aria-hidden="true" />
         <div className="shade" />
         <div className="cover-text">
           <div className="eyebrow">{hero?.eyebrow || 'Handmade Rugs for a Brighter Home'}</div>

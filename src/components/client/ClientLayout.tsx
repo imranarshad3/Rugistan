@@ -327,6 +327,7 @@ function Footer() {
 }
 
 export default function ClientLayout() {
+  const { error: storeError, reload } = useStore()
   const { pathname } = useLocation()
 
   useEffect(() => {
@@ -338,6 +339,7 @@ export default function ClientLayout() {
       <Announcement />
       <Nav />
       <main data-page={pathname.split('/')[1] || 'home'}>
+        {storeError && <div className="notice error" role="alert">{storeError} <button type="button" className="linkbtn" onClick={() => void reload()}>Try again</button></div>}
         <Outlet />
       </main>
       <Footer />

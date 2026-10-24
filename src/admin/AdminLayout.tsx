@@ -1,5 +1,5 @@
 import { useCurrency } from '../lib/currency'
-import { ArrowLeft, ArrowUpRight, ChevronDown, Menu } from 'lucide-react'
+import { ArrowUpRight, ChevronDown, ChevronRight, CalendarDays, ExternalLink, Menu } from 'lucide-react'
 import AdminIcon from './components/AdminIcon'
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
@@ -13,8 +13,7 @@ const NAV = [
   { to: '/admin/categories', icon: 'categories', label: 'Categories' },
   { to: '/admin/orders', icon: 'orders', label: 'Orders' },
   { to: '/admin/customers', icon: 'customers', label: 'Customers' },
-  { to: '/admin/banners', icon: 'banners', label: 'Banners' },
-  { to: '/admin/pages', icon: 'pages', label: 'Content Pages' },
+  { to: '/admin/pages', icon: 'pages', label: 'Website Content' },
   { to: '/admin/reviews', icon: 'reviews', label: 'Reviews' },
   { to: '/admin/analytics', icon: 'analytics', label: 'Analytics' },
   { to: '/admin/settings', icon: 'settings', label: 'Settings' },
@@ -69,7 +68,7 @@ export default function AdminLayout() {
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`.trim()}
+              className={({ isActive }) => `nav-link ${isActive || (item.to === '/admin/pages' && pathname.startsWith('/admin/banners')) ? 'active' : ''}`.trim()}
             >
               <span className="navicon" aria-hidden="true">
                 <AdminIcon name={item.icon} />
@@ -87,24 +86,22 @@ export default function AdminLayout() {
 
         <div className="main">
           <div className="topbar">
-            <div className="hstack">
+            <div className="topbar-left">
               <button type="button" className="sidetoggle" onClick={() => setSideOpen(true)} aria-label="Open menu">
                 <Menu size={22} aria-hidden="true" />
               </button>
-              <div className="bread"><ArrowLeft size={14} aria-hidden="true" />Admin / {crumbFor(pathname)}</div>
+              <nav className="bread" aria-label="Breadcrumb"><Link to="/admin">Studio</Link><ChevronRight className="breadcrumb-chevron" aria-hidden="true"/><strong>{crumbFor(pathname)}</strong></nav>
             </div>
             <div className="user">
+              <Link className="visit-store" to="/" target="_blank" rel="noreferrer" aria-label="Visit store (opens in a new tab)"><span>Visit Store</span><ExternalLink aria-hidden="true"/></Link>
               <span className="admin-currency-note" title={displayCurrency.error || `Display conversion only. Store base and billing currency: ${store.currency}.`}>{displayCurrency.loading || displayCurrency.error ? store.currency : displayCurrency.code}<small> display</small></span>
-              <span style={{ color: '#958071', fontWeight: 400 }}>{longDate(new Date().toISOString())}</span>
-              <span style={{ color: '#bba99a' }} aria-hidden="true">
-                │
-              </span>
+              <span className="topbar-date"><CalendarDays aria-hidden="true"/>{longDate(new Date().toISOString())}</span>
               <div className="usermenu" ref={menuRef}>
                 <button type="button" onClick={() => setMenuOpen((v) => !v)} aria-expanded={menuOpen} aria-haspopup="menu">
                   <span className="avatar">
                     {profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : initials(profile?.first_name, profile?.last_name, profile?.email)}
                   </span>
-                  <span>{profile?.first_name || 'Admin'}</span>
+                  <span className="user-identity"><strong>{profile?.first_name || 'Admin'}</strong><small>Store administrator</small></span>
                   <span style={{ fontSize: '1.25rem', fontWeight: 400 }} aria-hidden="true">
                     <ChevronDown size={16} aria-hidden="true" />
                   </span>

@@ -69,6 +69,7 @@ export default function Shop() {
   const [facets, setFacets] = useState<Facets | null>(null)
   const [products, setProducts] = useState<ProductFull[]>([])
   const [total, setTotal] = useState(0)
+  const [loadError, setLoadError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState<Banner | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -76,7 +77,8 @@ export default function Shop() {
   const list = useCallback((key: string) => params.getAll(key), [params])
   const search = params.get('q') ?? ''
   const sort = (params.get('sort') as ProductSort) || 'featured'
-  const page = Math.max(Number(params.get('page') ?? 1), 1)
+  const parsedPage = Number(params.get('page') ?? 1)
+  const page = Number.isFinite(parsedPage) ? Math.max(Math.floor(parsedPage), 1) : 1
   const featured = params.get('featured') === '1'
   const priceBand = params.get('price')
 
@@ -113,6 +115,7 @@ export default function Shop() {
   useEffect(() => {
     let active = true
     setLoading(true)
+    setLoadError(false)
     ;(async () => {
       try {
         const result = await fetchProducts({
@@ -132,6 +135,8 @@ export default function Shop() {
         if (!active) return
         setProducts(result.products)
         setTotal(result.total)
+      } catch {
+        if (active) { setLoadError(true); setProducts([]); setTotal(0) }
       } finally {
         if (active) setLoading(false)
       }
@@ -163,11 +168,15 @@ export default function Shop() {
     <>
       <PageBanner
         title="Shop All Rugs"
+        editorial
+        shop
+        eyebrow="THE HANDMADE COLLECTION"
         description="Every handmade rug is a new chapter of comfort, design and craftsmanship."
-        image="/assets/rug_lifestyle_1.jpg"
+        image="/assets/rug-living-hero.webp"
       />
 
-      <section className="section sidebar-layout">
+      {loadError && <div className="notice error" role="alert">Products could not be loaded. Please refresh and try again.</div>}
+      <section className="section sidebar-layout" id="rug-catalogue">
         <aside className={`filters ${filtersOpen ? 'open' : ''}`} aria-label="Product filters">
           <div className="filter-heading">
             <div><span className="filter-kicker">CURATE YOUR SPACE</span><h3>Refine your search</h3></div>

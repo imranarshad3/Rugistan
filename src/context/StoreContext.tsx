@@ -29,6 +29,7 @@ type StoreApi = {
   contactNotes: Record<string, string>
   categories: Category[]
   ready: boolean
+  error: string | null
   reload: () => Promise<void>
 }
 
@@ -40,14 +41,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [care, setCare] = useState<RugCareSettings>(DEFAULT_CARE)
   const [contactNotes, setContactNotes] = useState<Record<string, string>>({})
   const [categories, setCategories] = useState<Category[]>([])
+  const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
   const reload = useCallback(async () => {
     const [settingsRes, catRes] = await Promise.all([
-      supabase.from('settings').select('key,value'),
+      supabase.from('settings').select('key,value').in('key',['store','payments','rug_care','contact_page']),
       supabase.from('categories').select('*').eq('is_active', true).order('sort_order'),
     ])
 
+    if (settingsRes.error || catRes.error) { setError('Store details could not be loaded. Please try again.'); return }
+    setError(null)
     const rows = settingsRes.data ?? []
     const pick = (key: string) => rows.find((r) => r.key === key)?.value as Record<string, unknown> | undefined
 
@@ -79,8 +83,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [store.name, store.favicon_url])
 
   const value = useMemo<StoreApi>(
-    () => ({ store, payments, care, contactNotes, categories, ready, reload }),
-    [store, payments, care, contactNotes, categories, ready, reload],
+    () => ({ store, payments, care, contactNotes, categories, ready, error, reload }),
+    [store, payments, care, contactNotes, categories, ready, error, reload],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

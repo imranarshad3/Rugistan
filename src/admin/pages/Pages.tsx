@@ -1,3 +1,4 @@
+import ContentNavigation from '../components/ContentNavigation'
 import Select from '../../components/ui/Select'
 import { Plus, FileText, Pencil, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
@@ -12,6 +13,7 @@ export default function Pages() {
   const navigate = useNavigate()
   const toast = useToast()
   const [rows, setRows] = useState<Page[]>([])
+  const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [pendingDelete, setPendingDelete] = useState<Page | null>(null)
@@ -20,7 +22,9 @@ export default function Pages() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('pages').select('*').order('is_system', { ascending: false }).order('title')
+    const { data, error: readError } = await supabase.from('pages').select('*').order('is_system', { ascending: false }).order('title')
+    if (readError) { setLoadError('The latest records could not be loaded. Please try again.'); setLoading(false); return }
+    setLoadError('')
     setRows(data ?? [])
     setLoading(false)
   }, [])
@@ -60,6 +64,8 @@ export default function Pages() {
 
   return (
     <>
+      <ContentNavigation />
+      {loadError && <div className="notice error" role="alert">{loadError} <button type="button" className="action" onClick={() => void load()}>Try again</button></div>}
       <PageHeader
         title="Content Pages"
         subtitle="Edit the information and stories customers see on your website."

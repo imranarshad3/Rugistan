@@ -1,6 +1,6 @@
 import { Search, Upload, X } from 'lucide-react'
 import AdminIcon from './AdminIcon'
-import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react'
+import { cloneElement, isValidElement, useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { supabase, readableError } from '../../lib/supabase'
 import { percentChange } from '../../lib/format'
 
@@ -62,7 +62,7 @@ export function StatSkeleton() {
 
 /* ---------------- feedback ---------------- */
 export function Notice({ tone = 'info', children }: { tone?: 'info' | 'error' | 'success'; children: ReactNode }) {
-  return <div className={`notice ${tone === 'info' ? '' : tone}`.trim()}>{children}</div>
+  return <div role={tone === 'error' ? 'alert' : 'status'} className={`notice ${tone === 'info' ? '' : tone}`.trim()}>{children}</div>
 }
 
 export function EmptyState({ title, message, action }: { title: string; message: string; action?: ReactNode }) {
@@ -112,20 +112,39 @@ export function Modal({
   footer?: ReactNode
   width?: number
 }) {
+  const dialog = useRef<HTMLDivElement>(null)
+  const close = useRef(onClose)
+  useLayoutEffect(() => { close.current = onClose }, [onClose])
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    const focusable = () => Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]):not([aria-hidden="true"]), [tabindex="0"]') ?? []).filter(el => el.getClientRects().length)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); close.current(); return }
+      if (event.key !== 'Tab') return
+      const items = focusable()
+      const first = items[0]
+      const last = items[items.length - 1]
+      if (!first) { event.preventDefault(); dialog.current?.focus(); return }
+      if (event.shiftKey && (document.activeElement === first || !dialog.current?.contains(document.activeElement))) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && (document.activeElement === last || !dialog.current?.contains(document.activeElement))) { event.preventDefault(); first.focus() }
+    }
     window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
+    ;(focusable()[0] || dialog.current)?.focus()
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
     }
-  }, [onClose])
+  }, [])
 
   return (
     <div className="modal-backdrop" onMouseDown={onClose} role="presentation">
       <div
         className="modal"
+        ref={dialog}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -195,13 +214,13 @@ export function Field({
 }) {
   const fieldId = useId()
   const labelId = `${fieldId}-label`
-  const child = isValidElement(children) ? children as ReactElement<{ id?: string; 'aria-labelledby'?: string; 'aria-label'?: string }> : null
+  const child = isValidElement(children) ? children as ReactElement<{ id?: string; 'aria-labelledby'?: string; 'aria-label'?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }> : null
   const inputId = child?.props.id || fieldId
   return (
     <div className={`field ${error ? 'invalid' : ''}`.trim()}>
       <label id={labelId} htmlFor={inputId}>{label}</label>
-      {child ? cloneElement(child, { id: inputId, 'aria-labelledby': child.props['aria-labelledby'] || labelId, 'aria-label': child.props['aria-label'] || label }) : children}
-      {error ? <div className="err">{error}</div> : hint ? <div className="hint">{hint}</div> : null}
+      {child ? cloneElement(child, { id: inputId, 'aria-labelledby': child.props['aria-labelledby'] || labelId, 'aria-label': child.props['aria-label'] || label, 'aria-invalid': !!error, 'aria-describedby': error || hint ? `${fieldId}-help` : child.props['aria-describedby'] }) : children}
+      {error ? <div id={`${fieldId}-help`} className="err" role="alert">{error}</div> : hint ? <div id={`${fieldId}-help`} className="hint">{hint}</div> : null}
     </div>
   )
 }

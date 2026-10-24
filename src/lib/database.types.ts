@@ -361,6 +361,9 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
+            admin_save_shipping: { Args: { p_rows: Json }; Returns: undefined },
+            sync_cart: { Args: { p_lines: Json; p_merge?: boolean }; Returns: Json },
+            admin_save_product: { Args: { p_product: Json; p_images: Json; p_variants: Json; p_product_id?: string; p_expected_updated_at?: string }; Returns: string },
             admin_product_views: { Args: Record<PropertyKey, never>; Returns: { product_id: string; views: number }[] },
 
             "admin_customers":
@@ -393,13 +396,13 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
 "place_order":
-{ Args: { "p_address": Json,"p_contact": Json,"p_items": Json,"p_note"?: string,"p_payment_method"?: string,"p_promo_code"?: string,"p_shipping_method_id"?: string }; Returns: Json
+{ Args: { "p_address": Json,"p_contact": Json,"p_items": Json,"p_request_id"?: string,"p_note"?: string,"p_payment_method"?: string,"p_promo_code"?: string,"p_shipping_method_id"?: string }; Returns: Json
                            },
 "slugify":
 { Args: { "txt": string }; Returns: string
                            },
 "track_order":
-{ Args: { "p_email": string,"p_order_number": string }; Returns: Json
+{ Args: { "p_email": string,"p_order_number": string,"p_tracking_token"?: string }; Returns: Json
                            },
 "unaccent":
 { Args: { "": string }; Returns: string

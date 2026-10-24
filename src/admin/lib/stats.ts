@@ -49,24 +49,40 @@ export async function loadStats(from: string, to: string): Promise<DashboardStat
 export async function loadSeries(from: string, to: string, bucket: 'day' | 'month') {
   const { data, error } = await supabase.rpc('admin_sales_series', { p_from: from, p_to: to, p_bucket: bucket })
   if (error) throw error
+  if (error) throw error
   return (data ?? []) as { bucket: string; revenue: number; orders: number }[]
 }
 
 export async function loadTopProducts(from: string, to: string, limit = 4) {
-  const { data } = await supabase.rpc('admin_top_products', { p_from: from, p_to: to, p_limit: limit })
+  const { data, error } = await supabase.rpc('admin_top_products', { p_from: from, p_to: to, p_limit: limit })
+  if (error) throw error
   return (data ?? []) as { product_id: string; name: string; image_url: string | null; units: number; revenue: number }[]
 }
 
 export async function loadTopCategories(from: string, to: string, limit = 4) {
-  const { data } = await supabase.rpc('admin_top_categories', { p_from: from, p_to: to, p_limit: limit })
-  return (data ?? []) as {
-    category_id: string
-    name: string
-    image_url: string | null
-    units: number
-    revenue: number
-    share: number
-  }[]
+  const { data, error } = await supabase.rpc('admin_top_categories', { p_from: from, p_to: to, p_limit: limit })
+  if (!error) return data ?? []
+  if (error.code !== '42702') throw error
+  const grouped = new Map<string, { category_id: string; name: string; image_url: string | null; units: number; revenue: number; share: number }>()
+  let total = 0
+  for (let offset = 0; ; offset += 1000) {
+    const result = await supabase.from('order_items')
+      .select('id,quantity,line_total,product:products(category:categories(id,name,image_url)),order:orders!inner(created_at,status)')
+      .gte('order.created_at', from).lt('order.created_at', to).neq('order.status', 'cancelled')
+      .order('id').range(offset, offset + 999)
+    if (result.error) throw result.error
+    for (const row of result.data) {
+      total += Number(row.line_total)
+      const category = row.product?.category
+      if (!category) continue
+      const entry = grouped.get(category.id) ?? { category_id: category.id, name: category.name, image_url: category.image_url, units: 0, revenue: 0, share: 0 }
+      entry.units += row.quantity
+      entry.revenue += Number(row.line_total)
+      grouped.set(category.id, entry)
+    }
+    if (result.data.length < 1000) break
+  }
+  return [...grouped.values()].sort((a,b) => b.revenue-a.revenue).slice(0,limit).map(row => ({ ...row, share: total ? Math.round(row.revenue / total * 1000) / 10 : 0 }))
 }
 
 export function seriesLabels(rows: { bucket: string }[], bucket: 'day' | 'month') {

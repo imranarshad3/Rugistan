@@ -1,3 +1,4 @@
+import { ArrowDownRight, Sparkles } from 'lucide-react'
 import Icon from './Icon'
 import { Link } from 'react-router-dom'
 import { Reveal, SectionTitle } from './Primitives'
@@ -12,6 +13,8 @@ export function PageBanner({
   image = FALLBACK,
   cta,
   ctaTo,
+  editorial = false,
+  shop = false,
 }: {
   eyebrow?: string
   title: string
@@ -19,16 +22,21 @@ export function PageBanner({
   image?: string | null
   cta?: string
   ctaTo?: string
+  editorial?: boolean
+  shop?: boolean
 }) {
   return (
-    <div className="banner">
+    <div className={`banner${editorial ? ' banner-editorial' : ''}${shop ? ' shop-hero' : ''}`}>
       <img src={image || FALLBACK} alt="" aria-hidden="true" />
       <div className="shade" />
+      {shop && <span className="shop-hero-caption">THE ART OF LIVING WELL <span>RUGISTAN / COLLECTION</span></span>}
       <div className="inner">
         <div className="banner-crumb"><Link to="/">Home</Link><span>›</span><span>{title}</span></div>
         <div className="eyebrow">{eyebrow}</div>
         <h1>{title}</h1>
+        {shop && <span className="shop-hero-rule" aria-hidden="true" />}
         {description && <p>{description}</p>}
+        {shop && <><a className="btn shop-hero-cta" href="#rug-catalogue">Explore Rugs <ArrowDownRight size={18} aria-hidden="true" /></a><div className="shop-hero-note"><Sparkles size={16} aria-hidden="true" /><span>Natural textures. Timeless character.</span></div></>}
         {cta && ctaTo && <Link className="btn" to={ctaTo}>{cta} <Icon name="arrow" /></Link>}
       </div>
     </div>

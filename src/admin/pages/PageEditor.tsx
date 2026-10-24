@@ -1,3 +1,5 @@
+import ContentNavigation from '../components/ContentNavigation'
+import { sanitizeHtml } from '../../lib/html'
 import Select from '../../components/ui/Select'
 import { Bold, Italic, Underline, Heading2, Heading3, Pilcrow, List, ListOrdered, Link as LinkIcon, RemoveFormatting, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
@@ -39,6 +41,9 @@ export default function PageEditor() {
   const editorRef = useRef<HTMLDivElement>(null)
 
   const [form, setForm] = useState({ ...BLANK })
+  const [initialContent, setInitialContent] = useState('')
+  const [loadedVersion, setLoadedVersion] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(isNew)
   const [isSystem, setIsSystem] = useState(false)
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
@@ -52,10 +57,10 @@ export default function PageEditor() {
       .select('*')
       .eq('id', id!)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error: loadError }) => {
         if (!active) return
         if (!data) {
-          setError('That page could not be found.')
+          setError(loadError ? readableError(loadError) : 'That page could not be found.')
           setLoading(false)
           return
         }
@@ -70,7 +75,9 @@ export default function PageEditor() {
           status: p.status,
         })
         setIsSystem(p.is_system)
-        if (editorRef.current) editorRef.current.innerHTML = p.content
+        setInitialContent(p.content)
+        setLoaded(true)
+        setLoadedVersion(p.updated_at)
         setLoading(false)
       })
     return () => {
@@ -78,11 +85,19 @@ export default function PageEditor() {
     }
   }, [id, isNew])
 
+  useEffect(() => {
+    if (!loading && editorRef.current) editorRef.current.innerHTML = sanitizeHtml(initialContent)
+  }, [loading, initialContent])
+
   function exec(tool: (typeof TOOLS)[number]) {
     editorRef.current?.focus()
     if (tool.cmd === 'createLink') {
       const url = window.prompt('Link address (https://…)')
       if (!url) return
+      if (!/^(https?:\/\/|mailto:|tel:|\/(?!\/)|#)/i.test(url.trim())) {
+        toast.error('Use an https, email, telephone or local page link.')
+        return
+      }
       document.execCommand('createLink', false, url)
       return
     }
@@ -91,6 +106,7 @@ export default function PageEditor() {
 
   async function save(e: FormEvent, publish?: boolean) {
     e.preventDefault()
+    if (saving || !loaded) return
     setError('')
     if (!form.title.trim()) {
       setError('A page title is required.')
@@ -104,12 +120,12 @@ export default function PageEditor() {
       meta_title: form.meta_title.trim(),
       meta_description: form.meta_description.trim(),
       hero_image_url: form.hero_image_url || null,
-      content: editorRef.current?.innerHTML ?? '',
+      content: sanitizeHtml(editorRef.current?.innerHTML ?? ''),
       status: publish === undefined ? form.status : publish ? ('published' as PageStatus) : ('draft' as PageStatus),
     }
     const { error: err } = isNew
       ? await supabase.from('pages').insert(payload)
-      : await supabase.from('pages').update(payload).eq('id', id!)
+      : await supabase.from('pages').update(payload).eq('id', id!).eq('updated_at', loadedVersion!).select('id').single()
     setSaving(false)
     if (err) {
       setError(readableError(err, 'The page could not be saved. The URL slug may already be in use.'))
@@ -132,20 +148,21 @@ export default function PageEditor() {
 
   return (
     <form onSubmit={(e) => void save(e)}>
+      <ContentNavigation />
       <PageHeader
         title={isNew ? 'New Page' : `Edit Page — ${form.title}`}
         subtitle={isNew ? 'Website Pages / New' : `Website Pages / ${form.title}`}
         actions={
           <>
             {!isNew && form.status === 'published' && (
-              <a className="btn soft" href={`/page/${slug}`} target="_blank" rel="noreferrer">
+              <a className="btn soft" href={isSystem ? `/${slug}` : `/page/${slug}`} target="_blank" rel="noreferrer">
                 Preview
               </a>
             )}
-            <button type="button" className="btn soft" onClick={(e) => void save(e as never, false)} disabled={saving}>
+            <button type="button" className="btn soft" onClick={(e) => void save(e as never, false)} disabled={saving || !loaded}>
               Save Draft
             </button>
-            <button type="button" className="btn" onClick={(e) => void save(e as never, true)} disabled={saving}>
+            <button type="button" className="btn" onClick={(e) => void save(e as never, true)} disabled={saving || !loaded}>
               {saving ? <Spinner label="Saving" /> : 'Publish Page'}
             </button>
           </>
@@ -162,9 +179,9 @@ export default function PageEditor() {
           </Field>
           <Field
             label="Page URL"
-            hint={isSystem ? 'This page is linked from the main navigation — changing the slug may break those links.' : `Storefront address: /page/${slug || '…'}`}
+            hint={isSystem ? 'This address is used by the main navigation and cannot be changed.' : `Storefront address: /page/${slug || '…'}`}
           >
-            <input className="input" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} placeholder={slugify(form.title)} />
+            <input className="input" disabled={isSystem} value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} placeholder={slugify(form.title)} />
           </Field>
           <Field label="Hero Heading" hint="Large heading shown over the banner image.">
             <input className="input" value={form.hero_heading} onChange={(e) => setForm((f) => ({ ...f, hero_heading: e.target.value }))} />

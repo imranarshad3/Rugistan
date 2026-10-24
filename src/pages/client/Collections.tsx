@@ -16,6 +16,7 @@ export default function Collections() {
   const { categories } = useStore()
   const [banners, setBanners] = useState<Record<string, Banner>>({})
   const [products, setProducts] = useState<ProductFull[]>([])
+  const [loadError, setLoadError] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export default function Collections() {
       setBanners(map)
       setProducts(result.products)
       setLoading(false)
-    })()
+    })().catch(() => { if (active) { setLoadError(true); setLoading(false) } })
     return () => {
       active = false
     }
@@ -34,12 +35,15 @@ export default function Collections() {
 
   return (
     <>
+      {loadError && <div className="notice error" role="alert">We could not load the latest collection. Please refresh and try again.</div>}
       <PageBanner
         title="Collections"
+        editorial
+        eyebrow="CURATED BY RUGISTAN"
         cta="Explore Our Collections"
         ctaTo="#our-collections"
         description="Curated rug collections combining handmade tradition and thoughtful contemporary design."
-        image={banners.home_lifestyle?.image_url || '/assets/blue_rug_interior.jpg'}
+        image="/assets/rug-living-hero.webp"
       />
 
       <section className="section wrap" id="our-collections">

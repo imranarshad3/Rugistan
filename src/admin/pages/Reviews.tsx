@@ -17,6 +17,7 @@ const TABS: { key: ReviewStatus | 'all'; label: string }[] = [
 export default function Reviews() {
   const toast = useToast()
   const [rows, setRows] = useState<Row[]>([])
+  const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<ReviewStatus | 'all'>('all')
   const [search, setSearch] = useState('')
@@ -28,10 +29,12 @@ export default function Reviews() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error: readError } = await supabase
       .from('reviews')
       .select('*, product:products(name,slug)')
       .order('created_at', { ascending: false })
+    if (readError) { setLoadError('The latest records could not be loaded. Please try again.'); setLoading(false); return }
+    setLoadError('')
     setRows((data ?? []) as never)
     setLoading(false)
   }, [])
@@ -99,6 +102,7 @@ export default function Reviews() {
 
   return (
     <>
+      {loadError && <div className="notice error" role="alert">{loadError} <button type="button" className="action" onClick={() => void load()}>Try again</button></div>}
       <PageHeader title="Customer Reviews" subtitle="Review, approve and respond to customer feedback." />
 
       <div className="stats">

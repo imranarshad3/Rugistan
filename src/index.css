@@ -1,4 +1,5 @@
 :root{color-scheme:light}
+html{font-size:100%}
 *{box-sizing:border-box}
 html,body,#root{margin:0;padding:0;min-height:100%}
 body{background:#fbf7f1;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
@@ -34,3 +35,9 @@ img{max-width:100%}
 
 @media(max-width:700px){.rg-toasts{right:14px;left:14px;bottom:14px;max-width:none}}
 @media(prefers-reduced-motion:reduce){.rg-toast{animation:none}.rg-boot .bar::after{animation:none;width:100%}}
+
+.app-recovery { max-width: 620px; margin: 12vh auto; padding: 32px; color: #38251c; }
+.app-recovery a { display: inline-block; margin: 20px; color: inherit; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

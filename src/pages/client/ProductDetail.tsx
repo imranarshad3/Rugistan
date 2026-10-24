@@ -28,20 +28,22 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<ProductFull | null>(null)
   const [related, setRelated] = useState<ProductFull[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
+  const [loadError, setLoadError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
+  const productId = product?.id
   useEffect(() => {
-    if (!product || authLoading || isAdmin) return
+    if (!productId || authLoading || isAdmin) return
     let sessionKey: string
     try {
       sessionKey = sessionStorage.getItem('rugistan_view_session') || crypto.randomUUID()
       sessionStorage.setItem('rugistan_view_session', sessionKey)
     } catch { return }
     // The unique key also deduplicates React StrictMode effects and page reloads.
-    void supabase.from('product_views').insert({ product_id: product.id, session_key: sessionKey })
+    void supabase.from('product_views').insert({ product_id: productId, session_key: sessionKey })
       .then(() => undefined)
-  }, [product?.id, authLoading, isAdmin])
+  }, [productId, authLoading, isAdmin])
 
   const [activeImage, setActiveImage] = useState(0)
   const [variantId, setVariantId] = useState<string | null>(null)
@@ -53,6 +55,10 @@ export default function ProductDetail() {
     let active = true
     setLoading(true)
     setNotFound(false)
+    setLoadError(false)
+    setProduct(null)
+    setRelated([])
+    setReviews([])
     setActiveImage(0)
     setQuantity(1)
     ;(async () => {
@@ -64,7 +70,7 @@ export default function ProductDetail() {
         return
       }
       setProduct(found)
-      const firstSellable = found.variants.find((v) => v.is_active && v.stock_quantity > 0) ?? found.variants[0] ?? null
+      const firstSellable = found.variants.find((v) => v.is_active && v.stock_quantity > 0) ?? found.variants.find(v => v.is_active) ?? null
       setVariantId(firstSellable?.id ?? null)
       setLoading(false)
       const [rel, revs] = await Promise.all([
@@ -74,7 +80,7 @@ export default function ProductDetail() {
       if (!active) return
       setRelated(rel)
       setReviews(revs)
-    })()
+    })().catch(() => { if (active) { setLoadError(true); setLoading(false) } })
     return () => {
       active = false
     }
@@ -85,7 +91,7 @@ export default function ProductDetail() {
     [product, variantId],
   )
   const unitPrice = product ? Number(product.price) + Number(variant?.price_delta ?? 0) : 0
-  const available = variant ? variant.stock_quantity : (product?.stock_quantity ?? 0)
+  const available = Math.min(10, variant ? (variant.is_active ? variant.stock_quantity : 0) : (product?.variants.length ? 0 : product?.stock_quantity ?? 0))
   const colors = (product?.colors ?? []) as unknown as ColorSwatch[]
 
   useEffect(() => {
@@ -93,7 +99,7 @@ export default function ProductDetail() {
   }, [available])
 
   async function addToCart(then: 'stay' | 'checkout') {
-    if (!product) return
+    if (!product || busy) return
     setBusy(then === 'stay' ? 'cart' : 'buy')
     const error = await add(product.id, variantId, quantity)
     setBusy(null)
@@ -129,8 +135,8 @@ export default function ProductDetail() {
     return (
       <section className="section wrap">
         <EmptyState
-          title="That rug could not be found"
-          message="It may have sold out or been renamed. Browse the full collection to find something similar."
+          title={loadError ? "This rug is temporarily unavailable" : "That rug could not be found"}
+          message={loadError ? "We could not reach the store. Please refresh and try again." : "It may have sold out or been renamed. Browse the full collection to find something similar."}
           actionLabel="Shop all rugs"
           actionTo="/shop"
         />
@@ -143,6 +149,7 @@ export default function ProductDetail() {
 
   return (
     <>
+      {loadError && <div className="notice error" role="alert">We could not load the latest collection. Please refresh and try again.</div>}
       <div className="breadcrumbs">
         <Link to="/">Home</Link> &nbsp; › &nbsp; <Link to="/shop">All Rugs</Link>
         {product.category && (

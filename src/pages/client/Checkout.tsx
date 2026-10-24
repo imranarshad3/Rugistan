@@ -47,6 +47,7 @@ export default function Checkout() {
   const [methods, setMethods] = useState<ShippingMethod[]>([])
   const [shippingId, setShippingId] = useState<string | null>(null)
   const [paymentId, setPaymentId] = useState<string>('')
+  const [requestId] = useState(() => crypto.randomUUID())
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState('')
 
@@ -102,6 +103,7 @@ export default function Checkout() {
 
   async function placeOrder(e: FormEvent) {
     e.preventDefault()
+    if (busy || cart.loading) return
     setFailure('')
     if (!validate()) {
       toast.error('Please complete the highlighted fields.')
@@ -118,6 +120,7 @@ export default function Checkout() {
 
     setBusy(true)
     const { data, error } = await supabase.rpc('place_order', {
+      p_request_id: requestId,
       p_items: cart.lines.map((l) => ({
         product_id: l.productId,
         variant_id: l.variantId,
@@ -146,16 +149,16 @@ export default function Checkout() {
 
     if (error) {
       setFailure(readableError(error, 'Your order could not be placed. Please try again.'))
-      await cart.reload()
       return
     }
 
-    const result = data as { order_number: string } | null
+    const result = data as { order_number: string; id: string } | null
     storePromo(null)
-    await cart.reload()
+    if (!user) await cart.clear()
+    else await cart.reload()
     toast.success('Order placed. Thank you!')
     navigate(`/order-confirmation/${result?.order_number ?? ''}`, {
-      state: { email: form.email, instructions: (data as { payment_instructions?: string })?.payment_instructions },
+      state: { email: form.email, trackingToken: result?.id, instructions: (data as { payment_instructions?: string })?.payment_instructions },
     })
   }
 
@@ -196,9 +199,9 @@ export default function Checkout() {
           )}
         </div>
 
-        {failure && (
+        {(failure || cart.error) && (
           <div className="notice error" style={{ marginBottom: 18 }}>
-            {failure}
+            {failure || cart.error}
           </div>
         )}
 
@@ -360,7 +363,7 @@ export default function Checkout() {
               <strong>{money(total)}</strong>
             </div>
             {displayCurrency.code !== store.currency && !displayCurrency.error && <p className="checkout-currency-note">Estimated display total in {displayCurrency.code}. Your order will be charged {baseMoney(total)} in {store.currency}.</p>}
-            <button className="btn full" type="submit" disabled={busy || enabledPayments.length === 0 || methods.length === 0}>
+            <button className="btn full" type="submit" disabled={busy || cart.loading || !!cart.error || enabledPayments.length === 0 || methods.length === 0}>
               {busy ? <Spinner label="Placing order" /> : 'Place Order Securely →'}
             </button>
             <p className="subtle" style={{ marginTop: 15 }}>

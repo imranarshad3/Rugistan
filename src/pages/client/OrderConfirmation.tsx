@@ -9,11 +9,11 @@ import { PageBanner } from '../../components/client/Sections'
 import type { Order, OrderItem } from '../../lib/types'
 
 export default function OrderConfirmation() {
-  const money = useMoney()
   const { orderNumber = '' } = useParams()
-  const { state } = useLocation() as { state?: { email?: string; instructions?: string } }
+  const { state } = useLocation() as { state?: { email?: string; instructions?: string; trackingToken?: string } }
   const { user } = useAuth()
   const [order, setOrder] = useState<(Order & { items: OrderItem[] }) | null>(null)
+  const money = useMoney(undefined, order?.currency)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -37,6 +37,7 @@ export default function OrderConfirmation() {
         const { data } = await supabase.rpc('track_order', {
           p_order_number: orderNumber,
           p_email: state.email,
+          p_tracking_token: state.trackingToken,
         })
         const result = data as { found?: boolean; order?: Order; items?: OrderItem[] } | null
         if (active && result?.found) {
@@ -48,14 +49,14 @@ export default function OrderConfirmation() {
     return () => {
       active = false
     }
-  }, [orderNumber, user, state?.email])
+  }, [orderNumber, user, state?.email, state?.trackingToken])
 
   return (
     <>
       <PageBanner
         eyebrow="THANK YOU"
-        title="Your Order Is Confirmed"
-        description={`Order ${orderNumber} has been received. We will email you as it progresses.`}
+        title={order ? "Your Order Has Been Received" : "Order Details"}
+        description="View your order details and payment status below."
         image="/assets/rug_lifestyle_2.jpg"
       />
 
@@ -64,8 +65,8 @@ export default function OrderConfirmation() {
           <div className="skeleton" style={{ height: 240 }} />
         ) : !order ? (
           <EmptyState
-            title={`Order ${orderNumber} received`}
-            message="We could not load the details on this device, but your order is safe. Use the order number and your email on the tracking page to see it at any time."
+            title="Order details unavailable"
+            message="Sign in to view your orders, or use your saved tracking link. Contact our team if you need help."
             actionLabel="Track your order"
             actionTo="/track-order"
           />
@@ -97,6 +98,11 @@ export default function OrderConfirmation() {
                 </div>
               )}
 
+              {state?.trackingToken && <div className="notice" style={{ marginTop: 24 }}>
+                <strong>Save your private tracking link</strong>
+                <p>Keep this link safe to view this guest order later.</p>
+                <Link className="inline-link" to={`/track-order?order=${encodeURIComponent(orderNumber)}#${state.trackingToken}`}>Open tracking link</Link>
+              </div>}
               <div style={{ marginTop: 26, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <Link className="btn" to="/shop">
                   Continue Shopping
@@ -127,9 +133,9 @@ export default function OrderConfirmation() {
                 <span>Total</span>
                 <strong>{money(order.total)}</strong>
               </div>
-              <div className="secure">♧ &nbsp; Paid by {order.payment_method}</div>
+              <div className="secure">♧ &nbsp; Payment method: {order.payment_method}</div>
               <p className="subtle">
-                Delivering to {order.address_line1}, {order.city}
+                Delivering to {order.city}
                 {order.country ? `, ${order.country}` : ''}
               </p>
             </aside>

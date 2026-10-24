@@ -1,3 +1,4 @@
+import { csvCell } from '../../lib/csv'
 import Select from '../../components/ui/Select'
 import { useMoney } from '../../lib/currency'
 import { Download } from 'lucide-react'
@@ -26,6 +27,7 @@ export default function Orders() {
   const toast = useToast()
   const [rows, setRows] = useState<Row[]>([])
   const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<OrderStatus | 'all'>('all')
   const [search, setSearch] = useState('')
@@ -34,10 +36,12 @@ export default function Orders() {
   const load = useCallback(async () => {
     setLoading(true)
     const { from, to } = rangeBounds('30d')
-    const [{ data }, s] = await Promise.all([
+    const [{ data, error: readError }, s] = await Promise.all([
       supabase.from('orders').select('*, items:order_items(id,quantity)').order('created_at', { ascending: false }),
       loadStats(from, to).catch(() => null),
     ])
+    if (readError) { setLoadError('The latest records could not be loaded. Please try again.'); setLoading(false); return }
+    setLoadError('')
     setRows((data ?? []) as never)
     setStats(s)
     setLoading(false)
@@ -78,7 +82,7 @@ export default function Orders() {
         o.payment_status,
         new Date(o.created_at).toISOString(),
       ]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .map(csvCell)
         .join(','),
     )
     const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' })
@@ -99,6 +103,7 @@ export default function Orders() {
 
   return (
     <>
+      {loadError && <div className="notice error" role="alert">{loadError} <button type="button" className="action" onClick={() => void load()}>Try again</button></div>}
       <PageHeader
         title="Orders"
         subtitle="View, filter and manage every customer purchase."

@@ -1,3 +1,4 @@
+import { csvCell } from '../../lib/csv'
 import { useMoney } from '../../lib/currency'
 import { Download } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -23,6 +24,7 @@ export default function Customers() {
   const money = useMoney('PKR')
   const toast = useToast()
   const [rows, setRows] = useState<CustomerRow[]>([])
+  const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<CustomerRow | null>(null)
@@ -31,7 +33,9 @@ export default function Customers() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.rpc('admin_customers', { p_search: '' })
+    const { data, error: readError } = await supabase.rpc('admin_customers', { p_search: '' })
+    if (readError) { setLoadError('The latest records could not be loaded. Please try again.'); setLoading(false); return }
+    setLoadError('')
     setRows((data ?? []) as CustomerRow[])
     setLoading(false)
   }, [])
@@ -74,7 +78,7 @@ export default function Customers() {
     const header = ['First name', 'Last name', 'Email', 'Phone', 'Orders', 'Total spent', 'Joined', 'Last order']
     const lines = visible.map((r) =>
       [r.first_name, r.last_name, r.email, r.phone, r.orders_count, r.total_spent, r.created_at, r.last_order_at ?? '']
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .map(csvCell)
         .join(','),
     )
     const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' })
@@ -89,6 +93,7 @@ export default function Customers() {
 
   return (
     <>
+      {loadError && <div className="notice error" role="alert">{loadError} <button type="button" className="action" onClick={() => void load()}>Try again</button></div>}
       <PageHeader
         title="Customers"
         subtitle="Manage relationships with customers and returning buyers."

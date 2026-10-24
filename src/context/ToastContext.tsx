@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 type Toast = { id: number; message: string; tone: 'info' | 'success' | 'error' }
 type ToastApi = {
@@ -12,11 +12,14 @@ const Ctx = createContext<ToastApi | null>(null)
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const seq = useRef(0)
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  useEffect(() => () => { timers.current.forEach(clearTimeout); timers.current.clear() }, [])
 
   const notify = useCallback((message: string, tone: Toast['tone'] = 'info') => {
     const id = ++seq.current
     setToasts((list) => [...list, { id, message, tone }])
-    window.setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), 4200)
+    const timer = setTimeout(() => { setToasts(list => list.filter(t => t.id !== id)); timers.current.delete(timer) }, 4200)
+    timers.current.add(timer)
   }, [])
 
   const api = useMemo<ToastApi>(

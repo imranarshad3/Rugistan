@@ -1,5 +1,5 @@
 import { useMoney } from '../../lib/currency'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import Icon from '../../components/client/Icon'
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -13,6 +13,7 @@ type TrackResult = {
     order_number: string
     status: string
     payment_status: string
+    currency: string
     total: number
     created_at: string
     shipping_method: string
@@ -26,21 +27,29 @@ type TrackResult = {
 const STAGES = ['Order Placed', 'Processing', 'Shipped', 'Delivered']
 
 export default function TrackOrder() {
-  const money = useMoney()
-  const [orderNumber, setOrderNumber] = useState('')
+  const location = useLocation()
+  const [orderNumber, setOrderNumber] = useState(new URLSearchParams(location.search).get('order') || '')
+  const [token, setToken] = useState(location.hash.slice(1))
+  const [failure, setFailure] = useState('')
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<TrackResult | null>(null)
 
+  const money = useMoney(undefined, result?.order?.currency)
+
   async function search(e: FormEvent) {
     e.preventDefault()
+    if (busy) return
+    setFailure('')
     setBusy(true)
     setResult(null)
-    const { data } = await supabase.rpc('track_order', {
+    const { data, error } = await supabase.rpc('track_order', {
       p_order_number: orderNumber.trim(),
       p_email: email.trim(),
+      p_tracking_token: token.trim(),
     })
     setBusy(false)
+    if (error) { setFailure('Order tracking is temporarily unavailable. Please try again.'); return }
     setResult((data as TrackResult) ?? { found: false })
   }
 
@@ -51,7 +60,7 @@ export default function TrackOrder() {
     <>
       <PageBanner
         title="Track Your Order"
-        description="Enter your order number and email address to see where your rug is."
+        description="Enter your order number, email address and private tracking key to see where your rug is."
         image="/assets/rug_lifestyle_3.jpg"
       />
 
@@ -68,15 +77,20 @@ export default function TrackOrder() {
               Email Address
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" required />
             </label>
+            <label className="field">Private Tracking Key
+              <input value={token} onChange={e => setToken(e.target.value)} placeholder="Key from your order confirmation link" required autoComplete="off" />
+            </label>
+            <p className="subtitle">For older orders without a tracking key, sign in or contact our team.</p>
             <button className="btn" type="submit" disabled={busy}>
               {busy ? <Spinner label="Searching" /> : 'Track Order →'}
             </button>
           </form>
 
           <div>
+            {failure && <div className="notice error" role="alert">{failure}</div>}
             {result && !result.found && (
               <div className="notice error">
-                We could not find an order with that number and email. Check both and try again, or contact our team.
+                We could not find an order with those details. Check your tracking link and try again, or contact our team.
               </div>
             )}
 
