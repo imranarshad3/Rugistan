@@ -1,3 +1,4 @@
+import Profile from '../src/admin/pages/Profile'
 import Analytics from '../src/admin/pages/Analytics'
 import TeamManagement from '../src/admin/components/TeamManagement'
 import AdminApp from '../src/admin/AdminApp'
@@ -46,7 +47,7 @@ function ModalDemo() {
   return <><button type="button" onClick={() => setOpen(true)}>Open dialog</button>{open && <Modal title="Test dialog" onClose={() => setOpen(false)} footer={<button type="button" onClick={() => setOpen(false)}>Done</button>}><input aria-label="Dialog field" /></Modal>}</>
 }
 const mode = new URLSearchParams(location.search).get('mode')
-if(mode==='team')setSupabaseTokenProvider(()=>Promise.resolve('fixture-session'))
+if(mode==='team'||mode==='profile')setSupabaseTokenProvider(()=>Promise.resolve('fixture-session'))
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ToastProvider>
@@ -56,7 +57,7 @@ createRoot(document.getElementById('root')!).render(
             <Routes>
               {mode === 'restricted' && <Route path="/admin/*" element={<AdminApp />} />}
               {mode === 'layout' && <Route path="/pages/:id" element={<AdminLayout />} />}
-              {mode !== 'layout' && <Route path="/pages/:id" element={mode === 'analytics' ? <Analytics /> : mode === 'team' ? <TeamManagement /> : mode === 'loading' ? <LoadingScreen studio /> : mode === 'dashboard' ? <Dashboard /> : mode === 'modal' ? <ModalDemo /> : mode === 'select' ? <Dropdown /> : <PageEditor />} />}
+              {mode !== 'layout' && <Route path="/pages/:id" element={mode === 'profile' ? <Profile /> : mode === 'analytics' ? <Analytics /> : mode === 'team' ? <TeamManagement /> : mode === 'loading' ? <LoadingScreen studio /> : mode === 'dashboard' ? <Dashboard /> : mode === 'modal' ? <ModalDemo /> : mode === 'select' ? <Dropdown /> : <PageEditor />} />}
               <Route path="/products/new" element={<ProductForm />} />
             </Routes>
           </MemoryRouter>

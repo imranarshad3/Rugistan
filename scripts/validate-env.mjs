@@ -37,8 +37,12 @@ if (process.env.VERCEL || process.argv.includes('--production')) {
   if (env.SUPABASE_URL && env.SUPABASE_URL !== env.VITE_SUPABASE_URL)
     problems.push('Server and browser Supabase projects must match')
 }
-if (process.argv.includes('--production') && !env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith('pk_live_'))
-  problems.push('A live Clerk publishable key is required for production release')
+if (process.argv.includes('--production')) {
+  if (!env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith('pk_live_'))
+    problems.push('A live Clerk publishable key is required for production release')
+  if (!env.CLERK_SECRET_KEY?.startsWith('sk_live_'))
+    problems.push('A matching live Clerk secret key is required for production release')
+}
 if (problems.length) {
   console.error(problems.join('\n'))
   process.exitCode = 1
