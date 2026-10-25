@@ -49,7 +49,6 @@ export async function loadStats(from: string, to: string): Promise<DashboardStat
 export async function loadSeries(from: string, to: string, bucket: 'day' | 'month') {
   const { data, error } = await supabase.rpc('admin_sales_series', { p_from: from, p_to: to, p_bucket: bucket })
   if (error) throw error
-  if (error) throw error
   return (data ?? []) as { bucket: string; revenue: number; orders: number }[]
 }
 

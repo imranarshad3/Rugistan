@@ -289,3 +289,36 @@ for(const width of [320,390,768,1440])test(`profile details and security fit ${w
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true)
  await page.screenshot({path:`/tmp/rugistan-profile-${width}.png`,fullPage:true})
 })
+
+for(const width of [320,390,768,1440])test(`featured dashboard switches chart and exports real metrics at ${width}px`,async({page})=>{
+ await mockApi(page);let statsCalls=0
+ const stats={revenue:165538,revenue_prev:82769,orders:2,orders_prev:1,customers:3,customers_new:1,reviews_new:1,reviews_prev:0,reviews_pending:2,low_stock:1,products_total:8,aov:82769,repeat_rate:25,by_status:{pending:1,delivered:1}}
+ await page.route('**/rest/v1/settings*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{key:'store',value:{currency:'PKR',currency_symbol:'Rs '}}])}))
+ await page.route('**/rest/v1/rpc/admin_*',async route=>{
+  const name=new URL(route.request().url()).pathname.split('/').pop();if(name==='admin_dashboard_stats')statsCalls++
+  const data=name==='admin_dashboard_stats'?stats:name==='admin_sales_series'?[{bucket:'2026-10-01',revenue:82769,orders:1},{bucket:'2026-10-02',revenue:82769,orders:1}]:name==='admin_top_products'?[{product_id:'rug',name:'Turquoise Heritage Rug',units:2,revenue:165538}]:[{category_id:'category',name:'Traditional Collection',share:100,image_url:null}]
+  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)})
+ })
+ await page.route('**/rest/v1/products*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{id:'rug',name:'Turquoise Heritage Rug',stock_quantity:1,low_stock_at:2,product_images:[]}])}))
+ await page.route('**/rest/v1/orders*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{id:'order-test',order_number:'RG-TEST-001',first_name:'Test',last_name:'Customer',total:82769,status:'pending',created_at:'2026-10-25',items:[{id:'item'}]}])}))
+ await page.setViewportSize({width,height:900});await page.goto('/tests/browser-fixture.html?mode=dashboard')
+ await expect(page.getByRole('heading',{name:'Inventory watch'})).toBeVisible()
+ await expect(page.getByText('Low stock',{exact:true})).toBeVisible()
+ await expect(page.getByRole('link',{name:'RG-TEST-001'})).toHaveAttribute('href','/admin/orders/order-test')
+ await expect(page.getByRole('link',{name:/Add a rug/})).toHaveAttribute('href','/admin/products/new')
+ await page.getByRole('group',{name:'Chart metric'}).getByRole('button',{name:'Orders',exact:true}).click()
+ await expect(page.getByRole('img',{name:'Orders over time'})).toBeVisible()
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download summary'}).click();const file=await download
+ const contents=readFileSync((await file.path())!,'utf8');expect(contents).toContain('165538');expect(contents).toContain('Average order value (PKR)')
+ const before=statsCalls;await page.getByRole('button',{name:'Refresh dashboard'}).click();await expect.poll(()=>statsCalls).toBeGreaterThan(before)
+ await expect(page.getByRole('button',{name:'Refresh dashboard'})).toBeEnabled()
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true)
+ await page.screenshot({path:`/tmp/rugistan-dashboard-${width}.png`,fullPage:true})
+})
+test('dashboard reports inventory query failures and retries without a reload',async({page})=>{
+ await mockApi(page);let fail=true
+ await page.route('**/rest/v1/rpc/admin_dashboard_stats',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({revenue:0,orders:0,by_status:{}})}))
+ await page.route('**/rest/v1/products*',route=>route.fulfill({status:fail?500:200,contentType:'application/json',body:JSON.stringify(fail?{message:'Inventory is temporarily unavailable'}:[])}))
+ await page.goto('/tests/browser-fixture.html?mode=dashboard');await expect(page.getByRole('alert')).toContainText('Inventory is temporarily unavailable')
+ fail=false;await page.getByRole('button',{name:'Try again'}).click();await expect(page.getByRole('heading',{name:'Inventory watch'})).toBeVisible()
+})

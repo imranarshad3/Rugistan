@@ -332,7 +332,8 @@ export function SearchInput({
 }
 
 /* ---------------- line chart from real series ---------------- */
-export function LineChart({ points, labels }: { points: number[]; labels: string[] }) {
+export function LineChart({ points, labels, label='Revenue over time' }: { points: number[]; labels: string[]; label?:string }) {
+  const gradientId=useId()
   const width = 800
   const height = 255
   const left = 30
@@ -354,9 +355,9 @@ export function LineChart({ points, labels }: { points: number[]; labels: string
   const area = `${line} L${coords[coords.length - 1].x.toFixed(1)} ${bottom} L${coords[0].x.toFixed(1)} ${bottom} Z`
 
   return (
-    <svg className="linechart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="Revenue over time">
+    <svg className="linechart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={label}>
       <defs>
-        <linearGradient id="rgArea" x1="0" x2="0" y1="0" y2="1">
+        <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stopColor="#b58c6b" stopOpacity=".29" />
           <stop offset="1" stopColor="#b58c6b" stopOpacity="0" />
         </linearGradient>
@@ -364,7 +365,7 @@ export function LineChart({ points, labels }: { points: number[]; labels: string
       {[60, 105, 150, 195, 240].map((y) => (
         <line key={y} x1={left} x2={right} y1={y} y2={y} stroke="#f1e8df" />
       ))}
-      <path d={area} fill="url(#rgArea)" />
+      <path d={area} fill={`url(#${gradientId})`} />
       <path d={line} fill="none" stroke="#86563e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       {coords.length > 0 && <circle cx={coords[coords.length - 1].x} cy={coords[coords.length - 1].y} r="6" fill="#86563e" />}
       {labels.map((label, i) => (
