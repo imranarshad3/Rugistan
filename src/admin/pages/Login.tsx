@@ -1,12 +1,13 @@
+import {firstTeamRoute} from '../../lib/teamAccess'
 import { SignIn } from '@clerk/react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useStore } from '../../context/StoreContext'
 
 export default function AdminLogin() {
-  const { signOut, user, isAdmin, loading, error, refreshProfile } = useAuth()
+  const { signOut, user, isAdmin, isStaff, permissions, loading, error, refreshProfile } = useAuth()
   const { store } = useStore()
-  if (!loading && user && isAdmin) return <Navigate to="/admin" replace />
+  if (!loading && user && isStaff) return <Navigate to={isAdmin?'/admin':firstTeamRoute(permissions)} replace />
   return <div className="rg-admin login-shell"><div className="login-screen">
     <div className="login-photo"><img src="/assets/rug-living-hero.webp" alt="" aria-hidden="true" /><div><p>{store.name.toUpperCase()} · {store.tagline}</p><h1>Crafting timeless beauty.<br/>Managing every detail.</h1></div></div>
     <div className="login-body"><div className="login-card"><Link className="login-logo" to="/" aria-label="Rugistan home"><img src={store.logo_url || "/assets/rugistan-wordmark.webp"} alt={store.name} /></Link><div className="eyebrow">ADMINISTRATOR ACCESS</div>

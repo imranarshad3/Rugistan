@@ -65,7 +65,7 @@ export default function ProductCard({ product }: { product: ProductFull }) {
           <Icon name="heart" />
         </button>
         <Link to={`/rug/${product.slug}`} aria-label={product.name}>
-          <img className="productimg" src={productCover(product)} alt={product.name} loading="lazy" />
+          <img className="productimg" src={productCover(product)} alt={product.name} loading="lazy" decoding="async" />
         </Link>
       </div>
       <div className="prodbody">

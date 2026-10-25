@@ -41,7 +41,7 @@ export default function Checkout() {
   const navigate = useNavigate()
   const toast = useToast()
   const { user, profile } = useAuth()
-  const { payments, store } = useStore()
+  const { payments, store, ready: storeReady } = useStore()
 
   const [form, setForm] = useState<Form>(EMPTY)
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({})
@@ -162,6 +162,8 @@ export default function Checkout() {
       state: { email: form.email, trackingToken: result?.id, instructions: (data as { payment_instructions?: string })?.payment_instructions },
     })
   }
+
+  if (!storeReady || cart.loading) return <section className="section wrap" role="status"><Spinner label="Preparing checkout" /></section>
 
   if (!cart.loading && cart.lines.length === 0) {
     return (

@@ -1,6 +1,6 @@
 import PremiumSelect from '../../components/client/PremiumSelect'
-import { useApproxMoney } from '../../lib/currency'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMoney } from '../../lib/currency'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { fetchBanners, fetchFilterFacets, fetchProducts, type ProductSort } from '../../lib/api'
 import { useStore } from '../../context/StoreContext'
@@ -11,7 +11,7 @@ import type { Banner, ProductFull } from '../../lib/types'
 
 const PER_PAGE = 12
 
-const PRICE_BANDS = [
+const DEFAULT_PRICE_BANDS = [
   { id: 'under-300', label: 'Under 300', min: null, max: 299.99 },
   { id: '300-500', label: '300 – 500', min: 300, max: 500 },
   { id: 'over-500', label: '500+', min: 500.01, max: null },
@@ -63,9 +63,18 @@ function FilterGroup({
 }
 
 export default function Shop() {
-  const money = useApproxMoney()
+  const money = useMoney()
   const [params, setParams] = useSearchParams()
-  const { categories } = useStore()
+  const { categories, store } = useStore()
+  const priceBands = useMemo(() => {
+    const limits = store.price_filter_limits
+    if (!limits || limits.length !== 2 || !limits.every(n => Number.isFinite(n) && n > 0) || limits[1] <= limits[0]) return DEFAULT_PRICE_BANDS
+    return [
+      {id:'under-300',label:`Under ${money(limits[0])}`,min:null,max:limits[0]-1},
+      {id:'300-500',label:`${money(limits[0])} – ${money(limits[1])}`,min:limits[0],max:limits[1]},
+      {id:'over-500',label:`${money(limits[1])}+`,min:limits[1]+1,max:null},
+    ]
+  }, [store.price_filter_limits,money])
   const [facets, setFacets] = useState<Facets | null>(null)
   const [products, setProducts] = useState<ProductFull[]>([])
   const [total, setTotal] = useState(0)
@@ -73,6 +82,19 @@ export default function Shop() {
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState<Banner | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const resultsRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (loading || !products.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const animations = Array.from(resultsRef.current?.querySelectorAll<HTMLElement>(':scope > .prod') ?? []).map(card => card.animate([
+      {opacity:.85, transform:'translateY(4px)'},
+      {opacity:1, transform:'translateY(0)'},
+    ], {duration:180, easing:'cubic-bezier(.22,1,.36,1)'}))
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const stop = () => {if (media.matches) animations.forEach(animation => animation.cancel())}
+    media.addEventListener('change',stop)
+    return () => {animations.forEach(animation => animation.cancel()); media.removeEventListener('change',stop)}
+  }, [products, loading])
 
   const list = useCallback((key: string) => params.getAll(key), [params])
   const search = params.get('q') ?? ''
@@ -82,7 +104,7 @@ export default function Shop() {
   const featured = params.get('featured') === '1'
   const priceBand = params.get('price')
 
-  const band = PRICE_BANDS.find((b) => b.id === priceBand)
+  const band = priceBands.find((b) => b.id === priceBand)
 
   const update = useCallback(
     (mutate: (next: URLSearchParams) => void) => {
@@ -199,7 +221,7 @@ export default function Shop() {
             <h4>
               <span>Price</span>
             </h4>
-            {PRICE_BANDS.map((b) => (
+            {priceBands.map((b) => (
               <label key={b.id}>
                 <input
                   type="radio"
@@ -207,7 +229,7 @@ export default function Shop() {
                   checked={priceBand === b.id}
                   onChange={() => update((next) => { next.set('price', b.id); next.delete('page') })}
                 />
-                {b.label === '500+' ? `${money(500)}+` : b.label.includes('–') ? `${money(300)} – ${money(500)}` : `Under ${money(300)}`}
+                {store.price_filter_limits ? b.label : b.label === '500+' ? `${money(500)}+` : b.label.includes('–') ? `${money(300)} – ${money(500)}` : `Under ${money(300)}`}
               </label>
             ))}
           </section>
@@ -230,7 +252,7 @@ export default function Shop() {
             >
               {filtersOpen ? 'Hide filters' : 'Filters'}
             </button>
-            <span>
+            <span role="status" aria-live="polite" aria-atomic="true">
               {loading
                 ? 'Loading rugs…'
                 : total === 0
@@ -265,8 +287,8 @@ export default function Shop() {
             </div>
           )}
 
-          {loading ? (
-            <div className="gridprod three">
+          {loading && products.length === 0 ? (
+            <div className="gridprod three" aria-busy="true" aria-label="Loading products">
               {Array.from({ length: 6 }, (_, i) => <ProductCardSkeleton key={i} />)}
             </div>
           ) : products.length === 0 ? (
@@ -277,7 +299,7 @@ export default function Shop() {
               onAction={() => setParams(new URLSearchParams())}
             />
           ) : (
-            <div className="gridprod three">
+            <div ref={resultsRef} className={`gridprod three shop-results ${loading ? 'updating' : ''}`} aria-busy={loading} aria-label="Product results">
               {products.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

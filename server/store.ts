@@ -4,7 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createClient } from '@supabase/supabase-js'
 import { verifyToken } from '@clerk/backend'
 
-type Env = Record<string, string | undefined>
+export type Env = Record<string, string | undefined>
 type Result = { data: unknown; error: { code?: string; message?: string } | null }
 type Dependencies = {
   env: () => Env
@@ -13,18 +13,18 @@ type Dependencies = {
 }
 const MAX_BODY = 32768
 const actions = new Set(['checkout', 'contact', 'newsletter', 'view'])
-class RequestError extends Error {
+export class RequestError extends Error {
   status: number
   constructor(status: number, message: string) { super(message); this.status = status }
 }
-function object(value: unknown): value is Record<string, unknown> {
+export function object(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
-function header(req: IncomingMessage, key: string) {
+export function header(req: IncomingMessage, key: string) {
   const value = req.headers[key]
   return typeof value === 'string' ? value : ''
 }
-async function readBody(req: IncomingMessage & { body?: unknown }): Promise<unknown> {
+export async function readBody(req: IncomingMessage & { body?: unknown }): Promise<unknown> {
   const length = header(req, 'content-length')
   if (length && (!/^\d+$/.test(length) || Number(length) > MAX_BODY)) throw new RequestError(413, 'Submission is too large.')
   if (req.body !== undefined) {
@@ -59,6 +59,12 @@ const defaults: Dependencies = {
     return { sub: claims.sub, sid: claims.sid }
   },
 }
+export function allowedOrigins(env: Env) {
+  const origins=['https://rugistan.vercel.app']
+  if(env.VERCEL_URL)origins.push('https://'+env.VERCEL_URL)
+  if(!env.VERCEL)for(const port of [5173,5174,5175])origins.push(`http://localhost:${port}`,`http://127.0.0.1:${port}`)
+  return origins
+}
 export function createStoreHandler(deps: Dependencies = defaults) {
   return async (req: IncomingMessage & { body?: unknown }, res: ServerResponse) => {
     res.setHeader('Cache-Control', 'no-store')
@@ -69,9 +75,7 @@ export function createStoreHandler(deps: Dependencies = defaults) {
     try {
       if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); throw new RequestError(405, 'Method not allowed.') }
       const env = deps.env()
-      const origins = ['https://rugistan.vercel.app']
-      if (env.VERCEL_URL) origins.push('https://' + env.VERCEL_URL)
-      if (!env.VERCEL) origins.push('http://localhost:5173', 'http://127.0.0.1:5173')
+      const origins = allowedOrigins(env)
       const origin = header(req, 'origin')
       if (!origin || !origins.includes(origin)) throw new RequestError(403, 'Origin not allowed.')
       if (header(req, 'sec-fetch-site') === 'cross-site') throw new RequestError(403, 'Cross-site submission denied.')

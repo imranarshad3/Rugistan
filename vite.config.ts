@@ -1,5 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
+import {createTeamHandler} from './server/team.ts'
+import { productAi } from './server/admin-ai.ts'
 import { createStoreHandler } from './server/store.ts'
 
 export default defineConfig(({ mode }) => ({
@@ -23,6 +25,9 @@ export default defineConfig(({ mode }) => ({
           return { sub: claims.sub, sid: claims.sid }
         },
       })
+      const teamHandler = createTeamHandler({env:()=>env})
+      server.middlewares.use('/api/team',(req,res)=>{void teamHandler(req,res)})
+      server.middlewares.use('/api/admin-product-ai', (req, res) => { void productAi(req, res, env) })
       server.middlewares.use('/api/store', (req, res) => { void handler(req, res) })
     },
   }],

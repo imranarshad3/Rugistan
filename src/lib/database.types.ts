@@ -23,6 +23,18 @@ export type Database = {
           }
         },"public": {
           Tables: {
+            team_access: {
+              Row: {user_id:string;role:'owner'|'super_admin'|'admin';permissions:string[];granted_by:string|null;updated_at:string}
+              Insert: {user_id:string;role?:'owner'|'super_admin'|'admin';permissions?:string[];granted_by?:string|null;updated_at?:string}
+              Update: {user_id?:string;role?:'owner'|'super_admin'|'admin';permissions?:string[];granted_by?:string|null;updated_at?:string}
+              Relationships: []
+            },
+            team_invitations: {
+              Row: {id:string;email:string;role:'owner'|'super_admin'|'admin';permissions:string[];is_admin:boolean;invited_by:string;status:string;clerk_invitation_id:string|null;accepted_by:string|null;created_at:string;expires_at:string;accepted_at:string|null}
+              Insert: {id?:string;email:string;role?:'owner'|'super_admin'|'admin';permissions?:string[];is_admin?:boolean;invited_by:string;status?:string;clerk_invitation_id?:string|null;accepted_by?:string|null;created_at?:string;expires_at?:string;accepted_at?:string|null}
+              Update: {email?:string;role?:'owner'|'super_admin'|'admin';permissions?:string[];is_admin?:boolean;status?:string;clerk_invitation_id?:string|null;accepted_by?:string|null;expires_at?:string;accepted_at?:string|null}
+              Relationships: []
+            },
             order_admin_notes: {
                 Row: { order_id: string; body: string; updated_at: string }
                 Insert: { order_id: string; body?: string; updated_at?: string }

@@ -1,5 +1,6 @@
+import {firstTeamRoute,permissionForAdminPath} from '../lib/teamAccess'
 import LoadingScreen from '../components/LoadingScreen'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import {Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import AdminLayout from './AdminLayout'
 import AdminLogin from './pages/Login'
@@ -19,11 +20,17 @@ import Settings from './pages/Settings'
 import Profile from './pages/Profile'
 
 function Gate({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin, loading } = useAuth()
+  const { user, isAdmin, isStaff, permissions, loading } = useAuth()
+  const {pathname}=useLocation()
 
   if (loading) return <LoadingScreen studio />
   if (!user) return <Navigate to="/admin/login" replace />
-  if (!isAdmin) return <AdminLogin />
+  if (!isStaff) return <AdminLogin />
+  const required=permissionForAdminPath(pathname)
+  if(!isAdmin&&required&&!permissions.includes(required as typeof permissions[number])){
+    if(pathname==='/admin'||pathname==='/admin/')return <Navigate to={firstTeamRoute(permissions)} replace />
+    return <div className="rg-admin"><main className="section wrap"><h1>Access not assigned</h1><p>Ask an administrator to update your team permissions.</p><Link className="btn" to={firstTeamRoute(permissions)}>Return to your workspace</Link></main></div>
+  }
   return <>{children}</>
 }
 

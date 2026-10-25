@@ -1,3 +1,5 @@
+import {ArrowUpRight,ChartNoAxesCombined,ShoppingBag,Layers,PackageCheck} from 'lucide-react'
+import {Link} from 'react-router-dom'
 import Select from '../../components/ui/Select'
 import { useMoney } from '../../lib/currency'
 import { useEffect, useState } from 'react'
@@ -13,7 +15,7 @@ import {
   type DashboardStats,
   type RangeKey,
 } from '../lib/stats'
-import { EmptyState, LineChart, Notice, PageHeader, Stat, StatSkeleton } from '../components/ui'
+import { LineChart, Notice, PageHeader, Stat, StatSkeleton } from '../components/ui'
 
 export default function Analytics() {
   const money = useMoney('PKR')
@@ -24,6 +26,7 @@ export default function Analytics() {
   const [categories, setCategories] = useState<Awaited<ReturnType<typeof loadTopCategories>>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [retry,setRetry]=useState(0)
 
   useEffect(() => {
     let active = true
@@ -52,24 +55,24 @@ export default function Analytics() {
     return () => {
       active = false
     }
-  }, [range])
+  }, [range,retry])
 
-  if (error) return <><PageHeader title="Store insights" subtitle="Data is temporarily unavailable" /><Notice tone="error">{error}</Notice><button type="button" className="btn soft" onClick={() => window.location.reload()}>Try again</button></>
+  if (error) return <section className="analytics-page"><PageHeader title="Store Analytics" subtitle="Your studio, in numbers." /><Notice tone="error">{error}</Notice><button type="button" className="btn soft" onClick={() => setRetry(v=>v+1)}>Try again</button></section>
 
   const bucket = rangeBounds(range).bucket
   const statusEntries = Object.entries(stats?.by_status ?? {})
   const statusTotal = statusEntries.reduce((sum, [, n]) => sum + Number(n), 0)
 
   return (
-    <>
+    <section className="analytics-page" aria-label="Store analytics">
       <PageHeader
         title="Store Analytics"
-        subtitle="An overview of revenue, customer activity, and product performance."
+        subtitle="A considered view of your revenue, customers and collection."
         actions={
           <Select className="select" value={range} onChange={(e) => setRange(e.target.value as RangeKey)} aria-label="Date range">
             {RANGES.map((r) => (
               <option key={r.key} value={r.key}>
-                ◷ {r.label}
+                {r.label}
               </option>
             ))}
           </Select>
@@ -78,7 +81,7 @@ export default function Analytics() {
 
       {error && <Notice tone="error">{error}</Notice>}
 
-      <div className="stats">
+      <div className="stats analytics-metrics" aria-label="Key performance indicators">
         {loading || !stats ? (
           Array.from({ length: 4 }, (_, i) => <StatSkeleton key={i} />)
         ) : (
@@ -91,30 +94,31 @@ export default function Analytics() {
         )}
       </div>
 
-      <div className="grid cols2">
-        <div className="card pad">
-          <div className="hstack space">
-            <h2>Revenue Over Time</h2>
+      <div className="analytics-primary">
+        <div className="card pad analytics-revenue">
+          <div className="analytics-card-heading">
+            <div><span className="eyebrow">SALES PERFORMANCE</span><h2>Revenue over time</h2></div>
             <span className="pill">{RANGES.find((r) => r.key === range)?.label}</span>
           </div>
+          <div className="analytics-revenue-total"><strong>{loading?'—':money(stats?.revenue??0)}</strong><span>Revenue in the selected period</span></div>
           {loading ? (
-            <div className="skeleton" style={{ height: 250, marginTop: 18 }} />
+            <div className="skeleton" style={{ height: 200, marginTop: 18 }} />
           ) : series.some((s) => Number(s.revenue) > 0) ? (
             <LineChart points={series.map((s) => Number(s.revenue))} labels={seriesLabels(series, bucket)} />
           ) : (
-            <EmptyState title="No revenue in this period" message="The chart fills in as orders are placed." />
+            <div className="analytics-chart-empty"><ChartNoAxesCombined size={28} aria-hidden="true"/><strong>Your next chapter starts here</strong><p>Revenue will appear as your first orders arrive.</p><span>No sales recorded for this period</span></div>
           )}
         </div>
 
-        <div className="card pad">
-          <h2 style={{ marginBottom: 18 }}>Top Selling Products</h2>
+        <div className="card pad analytics-bestsellers">
+          <div className="analytics-card-heading"><div><span className="eyebrow">COLLECTION HIGHLIGHTS</span><h2>Best sellers</h2></div><ShoppingBag size={21} aria-hidden="true"/></div>
           {loading ? (
             <div className="skeleton" style={{ height: 200 }} />
           ) : products.length === 0 ? (
-            <EmptyState title="Nothing sold yet" message="Your best sellers will be listed here." />
+            <div className="analytics-empty"><span className="analytics-empty-icon"><ShoppingBag size={26} aria-hidden="true"/></span><h3>A collection ready to be discovered</h3><p>Your most loved pieces will appear here after the first sale.</p><Link className="inline-link" to="/admin/products">View your products <ArrowUpRight size={15} aria-hidden="true"/></Link></div>
           ) : (
-            products.map((p) => (
-              <div className="kpi" key={p.product_id}>
+            products.map((p,index) => (
+              <div className="kpi analytics-product" key={p.product_id}><span className="analytics-rank">{String(index+1).padStart(2,'0')}</span>
                 <img src={p.image_url ?? '/assets/rug_lifestyle_1.jpg'} alt="" aria-hidden="true" />
                 <div style={{ flex: 1 }}>
                   <strong>{p.name}</strong>
@@ -127,11 +131,11 @@ export default function Analytics() {
         </div>
       </div>
 
-      <div className="grid cols3" style={{ marginTop: 19 }}>
+      <div className="analytics-secondary">
         <div className="card pad">
-          <h2>Orders by Status</h2>
+          <div className="analytics-card-heading"><h2>Order activity</h2><ShoppingBag size={20} aria-hidden="true"/></div>
           {statusTotal === 0 ? (
-            <p className="sub">No orders recorded yet.</p>
+            <div className="analytics-empty compact"><p>Every order tells a story. Your fulfilment overview will appear here.</p><Link className="inline-link" to="/admin/orders">View orders <ArrowUpRight size={15} aria-hidden="true"/></Link></div>
           ) : (
             <>
               <p className="sub">
@@ -155,9 +159,9 @@ export default function Analytics() {
         </div>
 
         <div className="card pad">
-          <h2>Top Collections</h2>
+          <div className="analytics-card-heading"><h2>Top collections</h2><Layers size={20} aria-hidden="true"/></div>
           {categories.length === 0 ? (
-            <p className="sub">Collection performance appears once orders are placed.</p>
+            <div className="analytics-empty compact"><p>Discover which collections resonate most as sales grow.</p><Link className="inline-link" to="/admin/categories">Explore collections <ArrowUpRight size={15} aria-hidden="true"/></Link></div>
           ) : (
             categories.map((c) => (
               <div key={c.category_id} style={{ marginTop: 14 }}>
@@ -174,19 +178,16 @@ export default function Analytics() {
         </div>
 
         <div className="card pad">
-          <h2>Catalogue Health</h2>
+          <div className="analytics-card-heading"><h2>Catalogue health</h2><PackageCheck size={20} aria-hidden="true"/></div>
           {loading || !stats ? (
             <div className="skeleton" style={{ height: 120, marginTop: 14 }} />
           ) : (
             <>
-              <p className="sub">
-                {stats.products_total} product{stats.products_total === 1 ? '' : 's'} · {stats.low_stock} low on stock ·{' '}
-                {stats.reviews_pending} review{stats.reviews_pending === 1 ? '' : 's'} awaiting approval
-              </p>
+              <dl className="analytics-health"><div><dt>Products in your catalogue</dt><dd>{plainNumber(stats.products_total)}</dd></div><div><dt>Low stock</dt><dd>{plainNumber(stats.low_stock)}</dd></div><div><dt>Reviews to approve</dt><dd>{plainNumber(stats.reviews_pending)}</dd></div></dl>
               <div className="progress" style={{ marginTop: 28, height: 12 }}>
                 <b
                   style={{
-                    width: `${stats.products_total ? Math.round(((stats.products_total - stats.low_stock) / stats.products_total) * 100) : 0}%`,
+                    width: `${stats.products_total ? Math.max(0,Math.min(100,Math.round(((stats.products_total - stats.low_stock) / stats.products_total) * 100))) : 0}%`,
                   }}
                 />
               </div>
@@ -198,12 +199,12 @@ export default function Analytics() {
         </div>
       </div>
 
-      <div style={{ marginTop: 19 }}>
+      <div className="analytics-data-note">
         <Notice>
           Every figure above is calculated from live order and catalogue data. Traffic and conversion metrics need a web
           analytics provider, which is not connected to this store.
         </Notice>
       </div>
-    </>
+    </section>
   )
 }

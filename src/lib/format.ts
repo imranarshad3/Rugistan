@@ -14,11 +14,11 @@ export function money(amount: number | string | null | undefined): string {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: activeCurrency,
-      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(value)
   } catch {
-    return `${activeSymbol}${value.toLocaleString('en-US')}`
+    return `${activeSymbol}${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
   }
 }
 

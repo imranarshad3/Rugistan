@@ -112,7 +112,7 @@ export default function Settings() {
             <div className="sep" />
             <h2 className="smalltitle">Brand Identity</h2>
             <div className="hstack" style={{ gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <div className="card pad" style={{ minWidth: 270 }}>
+              <div className="card pad" style={{ minWidth: 0, width: 'min(100%, 20rem)' }}>
                 <h3>{form.logo_url ? <img src={form.logo_url} alt="Store logo" style={{ maxHeight: 48 }} /> : form.name}</h3>
                 <p className="sub">Current brand logo</p>
                 <div className="hstack" style={{ marginTop: 14 }}>
@@ -130,7 +130,7 @@ export default function Settings() {
                   )}
                 </div>
               </div>
-              <div className="card pad" style={{ minWidth: 220 }}>
+              <div className="card pad" style={{ minWidth: 0, width: 'min(100%, 20rem)' }}>
                 <h3>{form.favicon_url ? <img src={form.favicon_url} alt="Favicon" style={{ height: 32 }} /> : form.name.charAt(0)}</h3>
                 <p className="sub">Site favicon</p>
                 <div className="hstack" style={{ marginTop: 14 }}>
@@ -204,6 +204,7 @@ export default function Settings() {
 
 /* ---------------- shipping ---------------- */
 function ShippingTab() {
+  const {store} = useStore()
   const toast = useToast()
   const [rows, setRows] = useState<ShippingMethod[]>([])
   const [loading, setLoading] = useState(true)
@@ -221,6 +222,7 @@ function ShippingTab() {
 
   async function save() {
     if (saving) return
+    if (store.currency === 'PKR' && rows.some(row => !Number.isInteger(Number(row.amount)))) {toast.error('Delivery charges must be whole rupees.'); return}
     if (rows.some(row => !row.name.trim() || !Number.isFinite(Number(row.amount)) || Number(row.amount) < 0)) {
       toast.error('Every delivery method needs a name and a non-negative charge.')
       return
@@ -295,7 +297,7 @@ function ShippingTab() {
                 className="input"
                 type="number"
                 min="0"
-                step="0.01"
+                step={store.currency === 'PKR' ? '1' : '0.01'}
                 value={String(row.amount)}
                 onChange={(e) => setRows((list) => list.map((r, j) => (j === i ? { ...r, amount: Number(e.target.value) } : r)))}
               />
@@ -397,6 +399,7 @@ function PaymentsTab({
 
 /* ---------------- promotions ---------------- */
 function PromotionsTab() {
+  const {store} = useStore()
   const money = useMoney('PKR')
   const toast = useToast()
   const [rows, setRows] = useState<PromoCode[]>([])
@@ -416,6 +419,7 @@ function PromotionsTab() {
   }, [load])
 
   async function create() {
+    if (store.currency === 'PKR' && (!Number.isInteger(Number(form.min_subtotal)) || (form.type === 'fixed' && !Number.isInteger(Number(form.value))))) {toast.error('Fixed discounts and minimum spend must be whole rupees.'); return}
     if (!form.code.trim()) {
       toast.error('Enter a promo code.')
       return
@@ -467,10 +471,10 @@ function PromotionsTab() {
             </Select>
           </Field>
           <Field label={form.type === 'percent' ? 'Percent' : 'Amount'}>
-            <input className="input" type="number" min="0" step="0.01" value={form.value} onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))} />
+            <input className="input" type="number" min="0" step={store.currency === 'PKR' && form.type === 'fixed' ? '1' : '0.01'} value={form.value} onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))} />
           </Field>
           <Field label="Minimum Subtotal">
-            <input className="input" type="number" min="0" step="0.01" value={form.min_subtotal} onChange={(e) => setForm((f) => ({ ...f, min_subtotal: e.target.value }))} />
+            <input className="input" type="number" min="0" step={store.currency === 'PKR' ? '1' : '0.01'} value={form.min_subtotal} onChange={(e) => setForm((f) => ({ ...f, min_subtotal: e.target.value }))} />
           </Field>
         </div>
         <button type="button" className="btn" onClick={() => void create()} disabled={saving}>

@@ -1,3 +1,4 @@
+import {permissionsForRole,parseTeamRole,type TeamRole,type TeamPermission} from '../lib/teamAccess'
 import {
   createContext,
   useCallback,
@@ -19,6 +20,9 @@ type AuthApi = {
   user: AppUser | null
   profile: Profile | null
   isAdmin: boolean
+  teamRole: TeamRole | null
+  isStaff: boolean
+  permissions: TeamPermission[]
   loading: boolean
   error: string | null
   signOut: () => Promise<void>
@@ -33,9 +37,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { getToken } = useClerkAuth()
   const clerk = useClerk()
   const identity = useRef(clerkUser?.id)
+  const currentClerkUser = useRef(clerkUser)
   useLayoutEffect(() => {
     identity.current = clerkUser?.id
-  }, [clerkUser?.id])
+    currentClerkUser.current = clerkUser
+  }, [clerkUser])
+  const [teamRole, setTeamRole] = useState<TeamRole|null>(null)
+  const permissions=useMemo(()=>permissionsForRole(teamRole),[teamRole])
   const [profile, setProfile] = useState<Profile | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [getToken])
 
   const loadProfile = useCallback(async () => {
+    const clerkUser = currentClerkUser.current
     if (!clerkUser) {
       setProfile(null)
       setError(null)
@@ -79,15 +88,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data.email = email
     }
     if (identity.current !== clerkUser.id) return
+    let assigned:TeamRole|null=data.role==='admin'?'owner':null
+    if(data.role!=='admin'){
+      const access=await supabase.from('team_access').select('role').eq('user_id',clerkUser.id).maybeSingle()
+      if(access.error&&!['42P01','PGRST205'].includes(access.error.code))throw new Error('Your team permissions could not be loaded.')
+      if(access.data)assigned=parseTeamRole(access.data.role)
+    }
+    if(identity.current!==clerkUser.id)return
+    setTeamRole(assigned)
     setProfile(data)
     setError(null)
-  }, [clerkUser])
+  }, [])
 
+  const userId = clerkUser?.id
   useEffect(() => {
     if (!isLoaded) return
     let active = true
     setProfileLoading(true)
     setProfile(null)
+    setTeamRole(null)
     void loadProfile()
       .catch((err) => {
         if (active) setError(readableError(err))
@@ -98,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false
     }
-  }, [isLoaded, loadProfile])
+  }, [isLoaded, userId, loadProfile])
 
   const refreshProfile = useCallback(async () => {
     setProfileLoading(true)
@@ -151,6 +170,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile: profile?.id === user?.id ? profile : null,
       isAdmin: !!user && profile?.id === user.id && profile.role === 'admin',
+      isStaff: !!user && profile?.id === user.id && (profile.role === 'admin' || permissions.length>0),
+      teamRole: profile?.id === user?.id ? teamRole : null,
+      permissions,
       loading: !isLoaded || profileLoading,
       error,
       signOut,
@@ -158,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateProfile,
       refreshProfile,
     }),
-    [user, profile, isLoaded, profileLoading, error, signOut, manageAccount, updateProfile, refreshProfile],
+    [user, profile, teamRole, permissions, isLoaded, profileLoading, error, signOut, manageAccount, updateProfile, refreshProfile],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

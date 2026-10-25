@@ -1,5 +1,6 @@
+import TeamManagement from '../components/TeamManagement'
 import { useEffect, useState, type FormEvent } from 'react'
-import { supabase, readableError } from '../../lib/supabase'
+import { readableError } from '../../lib/supabase'
 import { dateTime, initials } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -10,7 +11,6 @@ export default function Profile() {
   const toast = useToast()
   const [form, setForm] = useState({ first_name: '', last_name: '', phone: '', avatar_url: '' })
   const [saving, setSaving] = useState(false)
-  const [admins, setAdmins] = useState<{ id: string; email: string; first_name: string; last_name: string }[]>([])
 
   useEffect(() => {
     if (profile) {
@@ -23,13 +23,6 @@ export default function Profile() {
     }
   }, [profile])
 
-  useEffect(() => {
-    void supabase
-      .from('profiles')
-      .select('id,email,first_name,last_name')
-      .eq('role', 'admin')
-      .then(({ data }) => setAdmins(data ?? []))
-  }, [])
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -51,6 +44,7 @@ export default function Profile() {
 
 
   return (
+    <>
     <form onSubmit={save}>
       <PageHeader
         title="Admin Profile"
@@ -74,7 +68,7 @@ export default function Profile() {
               <p className="sub">{profile?.email}</p>
               <div className="hstack" style={{ marginTop: 13 }}>
                 <ImageUploader
-                  folder="avatars"
+                  folder={`avatars/${user?.id}`}
                   label="Change Photo"
                   className="btn soft sm"
                   onError={(m) => toast.error(m)}
@@ -112,28 +106,13 @@ export default function Profile() {
             <button type="button" className="btn soft" onClick={manageAccount}>Manage Account Security</button>
           </div>
 
-          <div className="card pad" style={{ marginTop: 18 }}>
-            <h2 className="smalltitle">Administrators</h2>
-            {admins.map((a) => (
-              <div className="kpi" key={a.id}>
-                <span className="avatar">{initials(a.first_name, a.last_name, a.email)}</span>
-                <div style={{ flex: 1 }}>
-                  <strong>{`${a.first_name} ${a.last_name}`.trim() || a.email}</strong>
-                  <div className="tiny">{a.email}</div>
-                </div>
-                {a.id === profile?.id && <span className="tag green">You</span>}
-              </div>
-            ))}
-            <p className="tiny" style={{ marginTop: 14 }}>
-              Store owners control who can access the administration panel.
-            </p>
-          </div>
-
           <div className="notice" style={{ marginTop: 18 }}>
             🔒 Keep your account secure. Review your sign-in methods and enable two-step verification in Account Security.
           </div>
         </div>
       </div>
     </form>
+    <TeamManagement />
+    </>
   )
 }

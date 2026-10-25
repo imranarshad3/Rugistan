@@ -44,6 +44,7 @@ export type StoreSettings = {
   location: string
   currency: string
   currency_symbol: string
+  price_filter_limits?: [number, number]
   timezone: string
   logo_url: string
   favicon_url: string

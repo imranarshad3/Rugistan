@@ -70,11 +70,11 @@ export function useMoney(displayCode?: DisplayCurrency, sourceCurrency?: string)
     const value = convertAmount(Number(amount ?? 0), sourceCurrency || getStoreCurrency(), displayCode || current.code, current.rates)
     if (value === null || current.error) {
       if (!sourceCurrency) return baseMoney(amount)
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: sourceCurrency }).format(Number(amount ?? 0))
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: sourceCurrency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(amount ?? 0))
     }
     const code = displayCode || current.code
     const locale = CURRENCIES.find(c => c.code === code)?.locale || 'en-US'
-    return new Intl.NumberFormat(locale, { style: 'currency', currency: code, minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 }).format(value)
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: code, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value)
   }, [current, displayCode, sourceCurrency])
 }
 

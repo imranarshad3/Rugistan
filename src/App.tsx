@@ -33,6 +33,7 @@ const AccountOverview = lazy(() => import('./pages/client/Account').then(m => ({
 const AccountWishlist = lazy(() => import('./pages/client/Account').then(m => ({ default: m.AccountWishlist })))
 const RequireAuth = lazy(() => import('./pages/client/Account').then(m => ({ default: m.RequireAuth })))
 
+const TeamAccept = lazy(() => import('./pages/client/TeamAccept'))
 const AdminApp = lazy(() => import('./admin/AdminApp'))
 
 function Booting() { const { pathname } = useLocation(); return <LoadingScreen studio={pathname.startsWith('/admin')} /> }
@@ -53,6 +54,7 @@ export default function App() {
                   <Route path="our-story" element={<OurStory />} />
                   <Route path="rug-care" element={<RugCare />} />
                   <Route path="contact" element={<Contact />} />
+                  <Route path="team/accept" element={<TeamAccept />} />
                   <Route path="cart" element={<Cart />} />
                   <Route path="checkout" element={<Checkout />} />
                   <Route path="order-confirmation/:orderNumber" element={<OrderConfirmation />} />

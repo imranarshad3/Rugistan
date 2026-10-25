@@ -1,14 +1,17 @@
+import ProductAiAssistant from '../components/ProductAiAssistant'
+import { colorNameToHex, sizeLabel } from '../../lib/productColors'
+import type { ProductAiDraft } from '../../lib/productAi'
 import Select from '../../components/ui/Select'
 import { useStore } from '../../context/StoreContext'
 import ProductMedia, { type MediaDraft } from '../components/ProductMedia'
 import { isVideoMedia } from '../../lib/productMedia'
-import { Plus } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase, readableError } from '../../lib/supabase'
 import { slugify } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
-import { Field, Notice, PageHeader, Spinner } from '../components/ui'
+import { Field, Modal, Notice, PageHeader, Spinner } from '../components/ui'
 import type { Category, ColorSwatch, ProductFull, ProductStatus } from '../../lib/types'
 
 type VariantDraft = {
@@ -39,7 +42,7 @@ const BLANK = {
   color: '',
   room: '',
   style: '',
-  status: 'draft' as ProductStatus,
+  status: 'published' as ProductStatus,
   is_featured: false,
 }
 
@@ -50,7 +53,7 @@ export default function ProductForm() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  const [form, setForm] = useState({ ...BLANK })
+  const [form, setForm] = useState(() => ({ ...BLANK, sku: `RG-${crypto.randomUUID().replaceAll('-', '').slice(0,12).toUpperCase()}` }))
   const [variants, setVariants] = useState<VariantDraft[]>([])
   const [images, setImages] = useState<ImageDraft[]>([])
   const [colors, setColors] = useState<ColorSwatch[]>([])
@@ -61,6 +64,43 @@ export default function ProductForm() {
   const [uploading, setUploading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [banner, setBanner] = useState('')
+  const [aiBusy,setAiBusy]=useState(false)
+  const [sizeOpen,setSizeOpen]=useState(false)
+  const [sizeDraft,setSizeDraft]=useState({label:'',width:'',length:''})
+  const [sizeError,setSizeError]=useState('')
+  function addSize() {
+    const label=sizeLabel(sizeDraft.label,sizeDraft.width,sizeDraft.length)
+    if(!label){setSizeError('Enter a size label, or both positive dimensions in feet.');return}
+    if(variants.some(v=>v.label.trim().toLowerCase()===label.toLowerCase())){setSizeError('That size already exists.');return}
+    setVariants(v=>[...v,{label,price_delta:'0',stock_quantity:'0',sort_order:v.length,is_active:true}])
+    setSizeOpen(false);setSizeDraft({label:'',width:'',length:''});setSizeError('')
+  }
+  function applyAi(draft:ProductAiDraft,replace:boolean) {
+    const wholePrice = (value:number) => store.currency === 'PKR' ? Math.round(value) : value
+    setForm(current=>{
+      const next={...current}
+      for(const key of ['name','short_description','description','material','dimensions','weave_technique','color','style','room'] as const)
+        if(draft[key]&&(replace||!current[key].trim()))next[key]=draft[key]
+      if(draft.category_id&&categories.some(c=>c.id===draft.category_id)&&(replace||!current.category_id))next.category_id=draft.category_id
+      if(draft.price!==null&&(replace||current.price===''))next.price=String(wholePrice(draft.price))
+      if(draft.stock_quantity!==null&&(replace||(isNew&&current.stock_quantity==='0')))next.stock_quantity=String(draft.stock_quantity)
+      return next
+    })
+    setColors(current=>{
+      const next=[...current]
+      for(const c of draft.colors){const i=next.findIndex(x=>x.name.toLowerCase()===c.name.toLowerCase());if(i<0)next.push(c);else if(replace)next[i]=c}
+      return next
+    })
+    setVariants(current=>{
+      const next=[...current]
+      for(const v of draft.sizes){const i=next.findIndex(x=>x.label.toLowerCase()===v.label.toLowerCase())
+        if(i<0)next.push({label:v.label,price_delta:String(wholePrice(v.price_delta??0)),stock_quantity:String(v.stock_quantity??0),sort_order:next.length,is_active:true})
+        else if(replace)next[i]={...next[i],price_delta:v.price_delta===null?next[i].price_delta:String(wholePrice(v.price_delta)),stock_quantity:v.stock_quantity===null?next[i].stock_quantity:String(v.stock_quantity)}
+      }
+      return next
+    })
+    toast.success('AI draft applied. Review all details before publishing.')
+  }
 
   useEffect(() => {
     void supabase.from('categories').select('*').order('sort_order').then(({ data }) => setCategories(data ?? []))
@@ -141,9 +181,11 @@ export default function ProductForm() {
   function validate() {
     const next: Record<string, string> = {}
     if (!form.name.trim()) next.name = 'A product name is required.'
-    if (!form.sku.trim()) next.sku = 'A SKU is required.'
     if (form.price === '' || Number(form.price) < 0 || !Number.isFinite(Number(form.price)))
       next.price = 'Enter a price of 0 or more.'
+    if (store.currency === 'PKR' && !Number.isInteger(Number(form.price))) next.price = 'Enter a whole rupee amount.'
+    if (store.currency === 'PKR' && form.compare_at_price && !Number.isInteger(Number(form.compare_at_price))) next.compare_at_price = 'Enter a whole rupee amount.'
+    if (store.currency === 'PKR' && variants.some(v => !Number.isInteger(Number(v.price_delta)))) next.variants = 'Size price differences must be whole rupees.'
     if (form.compare_at_price && Number(form.compare_at_price) < Number(form.price))
       next.compare_at_price = 'The compare-at price should be higher than the price.'
     if (Number(form.stock_quantity) < 0 || Number.isNaN(Number(form.stock_quantity)))
@@ -160,7 +202,7 @@ export default function ProductForm() {
 
   async function save(e: FormEvent, publish?: boolean) {
     e.preventDefault()
-    if (saving || uploading) return
+    if (saving || uploading || aiBusy) return
     if (!isNew && !loadedVersion) { toast.error('Load the product before saving changes.'); return }
     setBanner('')
     if (!validate()) {
@@ -224,10 +266,10 @@ export default function ProductForm() {
         subtitle={isNew ? 'Products / Catalogue / New Product' : `Products / ${form.name}`}
         actions={
           <>
-            <button type="button" className="btn soft" onClick={(e) => void save(e as never, false)} disabled={saving || uploading}>
+            <button type="button" className="btn soft" onClick={(e) => void save(e as never, false)} disabled={saving || uploading || aiBusy}>
               Save Draft
             </button>
-            <button type="button" className="btn" onClick={(e) => void save(e as never, true)} disabled={saving || uploading}>
+            <button type="button" className="btn" onClick={(e) => void save(e as never, true)} disabled={saving || uploading || aiBusy}>
               {saving ? <Spinner label="Saving" /> : 'Publish Product'}
             </button>
           </>
@@ -237,7 +279,22 @@ export default function ProductForm() {
       {banner && <Notice tone="error">{banner}</Notice>}
       {errors.media && <Notice tone="error">{errors.media}</Notice>}
 
-      <div className="two" style={{ marginTop: banner ? 18 : 0 }}>
+      <ProductMedia items={images} onBusy={setUploading}
+            onAdd={url => setImages(list => [...list, { url, alt: form.name, sort_order: list.length }])}
+            onRemove={index => {
+              setImages(list => list.filter((_, i) => i !== index))
+            }}
+            onMove={(index, direction) => setImages(list => {
+              const target = index + direction
+              if (target < 0 || target >= list.length) return list
+              const next = [...list]; [next[index], next[target]] = [next[target], next[index]]
+              return next
+            })}
+          />
+
+      <ProductAiAssistant images={images} disabled={uploading||saving} onBusy={setAiBusy} onApply={applyAi} context={{...form,price:form.price||null,stock_quantity:isNew&&form.stock_quantity==='0'?null:form.stock_quantity,currency:store.currency,colors,sizes:variants,categories:categories.map(c=>({id:c.id,name:c.name}))}} />
+
+      <div className="two product-details-grid">
         <div>
           <div className="card form-card">
             <h2 className="smalltitle">Basic Information</h2>
@@ -245,11 +302,8 @@ export default function ProductForm() {
               <Field label="Product Name" error={errors.name}>
                 <input className="input" value={form.name} onChange={set('name')} placeholder="Turquoise Heritage Rug" />
               </Field>
-              <Field label="SKU" error={errors.sku}>
-                <input className="input" value={form.sku} onChange={set('sku')} placeholder="RG-101" />
-              </Field>
               <Field label={`Price (${store.currency})`} error={errors.price}>
-                <input className="input" type="number" min="0" step="0.01" value={form.price} onChange={set('price')} />
+                <input className="input" type="number" min="0" step={store.currency === 'PKR' ? '1' : '0.01'} value={form.price} onChange={set('price')} />
               </Field>
               <Field
                 label="Stock Quantity"
@@ -273,13 +327,6 @@ export default function ProductForm() {
                       {c.name}
                     </option>
                   ))}
-                </Select>
-              </Field>
-              <Field label="Status">
-                <Select className="select" value={form.status} onChange={set('status')}>
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
                 </Select>
               </Field>
             </div>
@@ -317,7 +364,7 @@ export default function ProductForm() {
             <summary>Additional Product Settings</summary>
             <div className="formgrid">
               <Field label={`Compare-at Price (${store.currency})`} hint="Optional. Shown struck through." error={errors.compare_at_price}>
-                <input className="input" type="number" min="0" step="0.01" value={form.compare_at_price} onChange={set('compare_at_price')} />
+                <input className="input" type="number" min="0" step={store.currency === 'PKR' ? '1' : '0.01'} value={form.compare_at_price} onChange={set('compare_at_price')} />
               </Field>
               <Field label="Low-stock Threshold" hint="Flags the product when stock drops to this level.">
                 <input className="input" type="number" min="0" value={form.low_stock_at} onChange={set('low_stock_at')} />
@@ -338,7 +385,7 @@ export default function ProductForm() {
 
           </details>
 
-          <div className="card form-card" style={{ marginTop: 19 }}>
+          <div className="card form-card product-support-card">
             <div className="hstack space" style={{ marginBottom: 16 }}>
               <h2 className="smalltitle" style={{ margin: 0 }}>
                 Sizes &amp; Stock
@@ -346,9 +393,7 @@ export default function ProductForm() {
               <button
                 type="button"
                 className="btn soft sm"
-                onClick={() =>
-                  setVariants((v) => [...v, { label: '', price_delta: '0', stock_quantity: '0', sort_order: v.length, is_active: true }])
-                }
+                onClick={() => {setSizeDraft({label:'',width:'',length:''});setSizeError('');setSizeOpen(true)}}
               >
                 <Plus size={16} aria-hidden="true" /> Add Size
               </button>
@@ -357,113 +402,40 @@ export default function ProductForm() {
             {variants.length === 0 ? (
               <p className="tiny">No sizes added — the rug sells at a single size using the stock quantity above.</p>
             ) : (
-              <div className="tablewrap">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Size label</th>
-                      <th>Price difference ({store.currency})</th>
-                      <th>Stock</th>
-                      <th>Active</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {variants.map((v, i) => (
-                      <tr key={v.id ?? `new-${i}`}>
-                        <td>
-                          <input
-                            className="input"
-                            value={v.label}
-                            placeholder="5′ × 8′"
-                            onChange={(e) =>
-                              setVariants((list) => list.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            className="input"
-                            type="number"
-                            step="0.01"
-                            value={v.price_delta}
-                            onChange={(e) =>
-                              setVariants((list) => list.map((x, j) => (j === i ? { ...x, price_delta: e.target.value } : x)))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            className="input"
-                            type="number"
-                            min="0"
-                            value={v.stock_quantity}
-                            onChange={(e) =>
-                              setVariants((list) => list.map((x, j) => (j === i ? { ...x, stock_quantity: e.target.value } : x)))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={v.is_active}
-                            aria-label={`${v.label || 'Size'} active`}
-                            onChange={(e) =>
-                              setVariants((list) => list.map((x, j) => (j === i ? { ...x, is_active: e.target.checked } : x)))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="action danger"
-                            onClick={() => {
-                              setVariants((list) => list.filter((_, j) => j !== i))
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="variant-list">
+                {variants.map((v,i)=><section className="variant-row" key={v.id??`new-${i}`} aria-label={`Size ${i+1}`}>
+                  <Field label="Size label"><input className="input" value={v.label} maxLength={80} placeholder="5 × 8 ft" onChange={e=>setVariants(list=>list.map((x,j)=>j===i?{...x,label:e.target.value}:x))} /></Field>
+                  <Field label={`Price difference (${store.currency})`}><input className="input" type="number" step={store.currency === 'PKR' ? '1' : '0.01'} value={v.price_delta} onChange={e=>setVariants(list=>list.map((x,j)=>j===i?{...x,price_delta:e.target.value}:x))} /></Field>
+                  <Field label="Stock"><input className="input" type="number" min="0" step="1" value={v.stock_quantity} onChange={e=>setVariants(list=>list.map((x,j)=>j===i?{...x,stock_quantity:e.target.value}:x))} /></Field>
+                  <div className="hstack space variant-controls"><label className="checkline"><input type="checkbox" checked={v.is_active} onChange={e=>setVariants(list=>list.map((x,j)=>j===i?{...x,is_active:e.target.checked}:x))} />Active</label><button type="button" className="action danger" aria-label={`Remove size ${v.label||i+1}`} onClick={()=>setVariants(list=>list.filter((_,j)=>j!==i))}>Remove</button></div>
+                </section>)}
               </div>
             )}
           </div>
         </div>
 
         <div>
-          <ProductMedia items={images} onBusy={setUploading}
-            onAdd={url => setImages(list => [...list, { url, alt: form.name, sort_order: list.length }])}
-            onRemove={index => {
-              setImages(list => list.filter((_, i) => i !== index))
-            }}
-            onMove={(index, direction) => setImages(list => {
-              const target = index + direction
-              if (target < 0 || target >= list.length) return list
-              const next = [...list]; [next[index], next[target]] = [next[target], next[index]]
-              return next
-            })}
-          />
 
-          <div className="card form-card" style={{ marginTop: 19 }}>
+
+          <div className="card form-card product-support-card">
             <div className="hstack space" style={{ marginBottom: 14 }}>
               <h2 className="smalltitle" style={{ margin: 0 }}>
                 Colour Swatches
               </h2>
               <button type="button" className="btn soft sm" onClick={() => setColors((c) => [...c, { name: '', hex: '#b78655' }])}>
-                ＋ Add
+                <Plus size={16} aria-hidden="true" /> Add
               </button>
             </div>
+            <p className="tiny" style={{marginBottom:12}}>Recognized color names update the swatch automatically. You can still adjust it manually.</p>
             {colors.length === 0 && <p className="tiny">Swatches appear under the product title on the storefront.</p>}
             {colors.map((c, i) => (
-              <div className="hstack" key={i} style={{ marginBottom: 10 }}>
+              <div className="hstack product-swatch-row" key={i}>
                 <input
                   className="input grow"
                   value={c.name}
                   placeholder="Dusty Blue"
-                  onChange={(e) => setColors((list) => list.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                  aria-label={`Colour name ${i+1}`}
+                  onChange={(e) => setColors((list) => list.map((x, j) => (j === i ? { ...x, name: e.target.value, hex: colorNameToHex(e.target.value) || x.hex } : x)))}
                 />
                 <input
                   type="color"
@@ -472,19 +444,24 @@ export default function ProductForm() {
                   style={{ width: 46, height: 40, border: '1px solid var(--rg-line)', borderRadius: 6, background: 'none' }}
                   onChange={(e) => setColors((list) => list.map((x, j) => (j === i ? { ...x, hex: e.target.value } : x)))}
                 />
-                <button type="button" className="action danger" onClick={() => setColors((list) => list.filter((_, j) => j !== i))}>
-                  ✕
+                <button type="button" className="action danger" aria-label={`Remove colour ${c.name || i + 1}`} onClick={() => setColors((list) => list.filter((_, j) => j !== i))}>
+                  <X size={16} aria-hidden="true" />
                 </button>
               </div>
             ))}
           </div>
 
           <div className="notice" style={{ marginTop: 19 }}>
-            Changes are saved as a draft until you publish this product. Published rugs appear on the storefront
-            immediately.
+            New products default to Published. Use Save Draft when the listing is not ready. Nothing is saved until you choose a save action.
           </div>
         </div>
       </div>
+      {sizeOpen&&<Modal title="Add a size" width={440} onClose={()=>setSizeOpen(false)} footer={<><button type="button" className="btn soft" onClick={()=>setSizeOpen(false)}>Cancel</button><button type="button" className="btn" onClick={addSize}>Add Size</button></>}>
+        <Field label="Size label" hint="Use a label, or enter dimensions below. You do not need both."><input className="input" value={sizeDraft.label} maxLength={80} placeholder="Small, Runner, 5 × 8 ft…" onChange={e=>setSizeDraft(v=>({...v,label:e.target.value}))} /></Field>
+        <div className="formgrid"><Field label="Width (ft)" hint="Optional"><input className="input" type="number" min="0.1" max="100" step="0.1" value={sizeDraft.width} onChange={e=>setSizeDraft(v=>({...v,width:e.target.value}))} /></Field><Field label="Length (ft)" hint="Optional"><input className="input" type="number" min="0.1" max="100" step="0.1" value={sizeDraft.length} onChange={e=>setSizeDraft(v=>({...v,length:e.target.value}))} /></Field></div>
+        {sizeError&&<Notice tone="error">{sizeError}</Notice>}
+        <p className="tiny">Set price differences and stock in the size table after adding the label.</p>
+      </Modal>}
     </form>
   )
 }

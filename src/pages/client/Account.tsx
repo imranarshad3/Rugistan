@@ -27,7 +27,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 export function AccountLayout() {
-  const { profile, signOut, isAdmin } = useAuth()
+  const { profile, signOut, isStaff } = useAuth()
   const links = [
     { to: '/account', label: 'Overview', end: true },
     { to: '/account/orders', label: 'Orders' },
@@ -51,7 +51,7 @@ export function AccountLayout() {
                 {l.label}
               </NavLink>
             ))}
-            {isAdmin && <Link className="acct-admin-link" to="/admin"><LayoutDashboard size={17} aria-hidden="true" /><span>Admin Dashboard</span><ArrowUpRight size={16} aria-hidden="true" /></Link>}
+            {isStaff && <Link className="acct-admin-link" to="/admin"><LayoutDashboard size={17} aria-hidden="true" /><span>Admin Dashboard</span><ArrowUpRight size={16} aria-hidden="true" /></Link>}
             <button type="button" className="acct-signout" onClick={() => void signOut()}>
               Sign Out
             </button>

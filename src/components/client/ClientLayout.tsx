@@ -1,6 +1,7 @@
+import { ArrowUpRight } from 'lucide-react'
 import { storeWrite } from '../../lib/storeApi'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type RefObject } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { readableError } from '../../lib/supabase'
 import { useStore } from '../../context/StoreContext'
 import { useAuth } from '../../context/AuthContext'
@@ -35,21 +36,35 @@ function Announcement() {
   )
 }
 
+function useOverlayFocus(ref: RefObject<HTMLElement | null>, onClose: () => void) {
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const focusable = () => Array.from(ref.current?.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),[tabindex="0"]') ?? [])
+    focusable()[0]?.focus()
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose() }
+      if (event.key !== 'Tab') return
+      const nodes = focusable(), first = nodes[0], last = nodes.at(-1)
+      if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last?.focus()}
+      else if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first?.focus()}
+    }
+    document.addEventListener('keydown',keydown)
+    return () => {document.removeEventListener('keydown',keydown); document.body.style.overflow = previousOverflow; if (opener?.isConnected) opener.focus({preventScroll:true})}
+  }, [ref,onClose])
+}
+
 function SearchOverlay({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
   const [term, setTerm] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    inputRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const panelRef = useRef<HTMLDivElement>(null)
+  useOverlayFocus(panelRef,onClose)
 
   return (
     <div className="drawer-backdrop" onClick={onClose} role="presentation">
-      <div className="search-panel" onClick={(e) => e.stopPropagation()} role="search">
+      <div ref={panelRef} className="search-panel" onClick={(e) => e.stopPropagation()} role="search">
         <form
           onSubmit={(e: FormEvent) => {
             e.preventDefault()
@@ -82,10 +97,12 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
 
 function MobileDrawer({ onClose }: { onClose: () => void }) {
   const { user } = useAuth()
+  const drawerRef = useRef<HTMLElement>(null)
+  useOverlayFocus(drawerRef,onClose)
   return (
     <>
       <div className="drawer-backdrop" onClick={onClose} role="presentation" />
-      <nav className="drawer" aria-label="Mobile">
+      <nav ref={drawerRef} className="drawer" aria-label="Mobile">
         <button type="button" className="closebtn" onClick={onClose} aria-label="Close menu">
           ✕
         </button>
@@ -116,6 +133,8 @@ function Nav() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [stuck, setStuck] = useState(false)
+  const closeMenu = useCallback(() => setMenuOpen(false), [])
+  const closeSearch = useCallback(() => setSearchOpen(false), [])
 
   useEffect(() => {
     const onScroll = () => setStuck(window.scrollY > 12)
@@ -153,8 +172,8 @@ function Nav() {
           </Link>
         </div>
       </nav>
-      {menuOpen && <MobileDrawer onClose={() => setMenuOpen(false)} />}
-      {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
+      {menuOpen && <MobileDrawer onClose={closeMenu} />}
+      {searchOpen && <SearchOverlay onClose={closeSearch} />}
     </>
   )
 }
@@ -185,7 +204,8 @@ function Newsletter() {
   return (
     <div className="newsletter">
       <div>
-        <h3>Join Our Newsletter</h3>
+        <span className="newsletter-kicker">LET’S STAY IN TOUCH</span>
+        <h3>A little inspiration, woven in.</h3>
         <p>New collections, handmade stories and exclusive updates.</p>
       </div>
       <form className="subscribe" onSubmit={subscribe}>
@@ -201,7 +221,7 @@ function Newsletter() {
           required
         />
         <button type="submit" disabled={busy}>
-          {busy ? <Spinner /> : 'Subscribe'}
+          {busy ? <Spinner /> : <><span>Subscribe</span><ArrowUpRight size={18} aria-hidden="true" /></>}
         </button>
       </form>
     </div>
@@ -209,16 +229,19 @@ function Newsletter() {
 }
 
 function Footer() {
-  const { store } = useStore()
+  const { store, ready } = useStore()
   const currency = useCurrency()
   const social = Object.entries(store.social ?? {}).filter(([, url]) => url)
 
   return (
     <>
       <footer className="footer">
-        <div>
+        <div className="footer-inner">
+        <Newsletter />
+        <div className="footer-columns">
+        <div className="footer-brand">
           <Logo />
-          <p style={{ marginTop: 20, maxWidth: 210 }}>
+          <p className="footer-brand-description">
             Artisan-crafted rugs, timeless beauty and meaningful living spaces.
           </p>
         </div>
@@ -303,9 +326,10 @@ function Footer() {
             </p>
           )}
         </div>
-        <Newsletter />
+        </div>
+        </div>
       </footer>
-      {currency.code !== store.currency && !currency.error && <div className="currency-disclosure">Prices in {currency.code} are estimates. Orders are charged in {store.currency}. <a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer">Rates by ExchangeRate-API</a></div>}
+      {ready && currency.code !== store.currency && !currency.error && <div className="currency-disclosure">Prices in {currency.code} are estimates. Orders are charged in {store.currency}. <a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer">Rates by ExchangeRate-API</a></div>}
       {currency.error && <div className="currency-disclosure">{currency.error}</div>}
       <div className="legal">
         <span>
@@ -314,7 +338,7 @@ function Footer() {
         <span>
           <Link to="/page/privacy-policy">Privacy Policy</Link>
           {'  |  '}
-          <Link to="/page/shipping-and-returns">Terms of Service</Link>
+          <Link to="/page/shipping-and-returns">Shipping &amp; Returns</Link>
         </span>
       </div>
     </>
@@ -323,11 +347,48 @@ function Footer() {
 
 export default function ClientLayout() {
   const { error: storeError, reload } = useStore()
-  const { pathname } = useLocation()
+  const { pathname, hash, key } = useLocation()
+  const navigationType = useNavigationType()
+  const positions = useRef(new Map<string, number>())
+  const previousPath = useRef(pathname)
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-  }, [pathname])
+  useLayoutEffect(() => {
+    const previousRestoration = history.scrollRestoration
+    history.scrollRestoration = 'manual'
+    return () => {history.scrollRestoration = previousRestoration}
+  }, [])
+  useLayoutEffect(() => {
+    const changedPage = previousPath.current !== pathname
+    previousPath.current = pathname
+    let observer: MutationObserver | undefined
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    if (hash) {
+      let targetId = hash.slice(1)
+      try {targetId = decodeURIComponent(targetId)} catch { /* A malformed fragment remains harmless text. */ }
+      const scrollToAnchor = () => {
+        const target = document.getElementById(targetId)
+        if (!target) return false
+        target.scrollIntoView({behavior:'instant',block:'start'})
+        observer?.disconnect()
+        return true
+      }
+      if (!scrollToAnchor()) {
+        observer = new MutationObserver(scrollToAnchor)
+        observer.observe(document.querySelector('main') ?? document.body,{childList:true,subtree:true})
+        timeout = setTimeout(()=>observer?.disconnect(),5000)
+      }
+    } else if (navigationType === 'POP' && positions.current.has(key)) {
+      window.scrollTo({top:positions.current.get(key)!,behavior:'instant'})
+    } else if (changedPage) {
+      window.scrollTo({top:0,behavior:'instant'})
+    }
+    return () => {
+      positions.current.set(key,window.scrollY)
+      if (positions.current.size > 50) positions.current.delete(positions.current.keys().next().value!)
+      observer?.disconnect()
+      clearTimeout(timeout)
+    }
+  }, [pathname,hash,key,navigationType])
 
   return (
     <div className="rg-client">

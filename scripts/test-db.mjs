@@ -58,6 +58,9 @@ try {
   console.log(checks.join('\n'))
   if (output.includes('not ok') || /Looks like you/.test(output))
     throw new Error('Database regression failure')
+  const teamOutput = sql(db, readFileSync('supabase/tests/team_access.sql', 'utf8'))
+  console.log(teamOutput.split('\n').filter(x => /^(not )?ok \d+/.test(x)).join('\n'))
+  if (teamOutput.includes('not ok') || /Looks like you/.test(teamOutput)) throw new Error('Team permission regression failure')
   // Force the last-redemption race open. The promo row lock must serialize eligibility.
   sql(
     db,
@@ -85,7 +88,7 @@ try {
     sql(db, 'select count(*) from public.orders').trim() !== '1'
   )
     throw new Error('Concurrent promotion redemption failed')
-  console.log(`PASS: ${checks.length} database checks and concurrent last-redemption race.`)
+  console.log(`PASS: ${checks.length + teamOutput.split('\n').filter(x => /^ok \d+/.test(x)).length} database checks and concurrent last-redemption race.`)
   const quotas = await Promise.all(Array.from({ length: 12 }, () => run('docker', [
     ...args(db), '-c', "select public.consume_store_quota('checkout',repeat('c',64))->>'allowed';",
   ])))
